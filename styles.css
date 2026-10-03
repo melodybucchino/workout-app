@@ -48,6 +48,7 @@
   --danger-border: #EBC2B4;
 
   --strength: #E4572E;
+  --core: #D6489B;
   --run: #2F6FEB;
   --walk: #16A394;
   --mobility: #9B5DE5;
@@ -161,6 +162,7 @@ body.has-tabbar .tabbar { display: flex; }
 .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; background: var(--c, var(--muted)); }
 .dot.lg { width: 11px; height: 11px; }
 .t-strength { --c: var(--strength); }
+.t-core { --c: var(--core); }
 .t-run { --c: var(--run); }
 .t-walk { --c: var(--walk); }
 .t-mobility { --c: var(--mobility); }

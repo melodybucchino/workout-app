@@ -1,6 +1,6 @@
 import * as db from '../db.js';
 import {
-  TYPES, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isDistanceType,
+  TYPES, isExerciseType, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isDistanceType,
   formatKm, formatDuration, formatIncline, paceOf, fmtW, getUnit, topKg, countedSets, priorLogs,
   previousExercise, progressBadge, badgeHtml, isTimed, formatHold, backLink, icon,
 } from '../util.js';
@@ -61,7 +61,7 @@ export default async function day(ctx) {
   }).join('');
 
   const cards = dayLogs.map(l => {
-    const body = l.type === 'strength' ? strengthBody(l, logs) : isDistanceType(l.type) ? distanceBody(l) : durationBody(l);
+    const body = isExerciseType(l.type) ? strengthBody(l, logs) : isDistanceType(l.type) ? distanceBody(l) : durationBody(l);
     return `<a class="card log-card" href="#/log/${l.id}">
       <div class="log-card-head"><span class="eyebrow"><span class="dot t-${l.type}"></span>${esc(TYPES[l.type].label)}</span>${icon.chevR}</div>
       <div class="log-card-title">${esc(l.title)}</div>

@@ -1,6 +1,6 @@
 import * as db from '../db.js';
 import {
-  TYPES, esc, fromKey, fmt, isDistanceType, debounce, priorLogs, previousExercise,
+  TYPES, isExerciseType, esc, fromKey, fmt, isDistanceType, debounce, priorLogs, previousExercise,
   progressBadge, isTimed, holdDigits, parseHold, formatHold, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
   parseDuration, formatDuration, digitsToTime, paceOf, formatKm, formatIncline, backLink, icon,
 } from '../util.js';
@@ -292,7 +292,7 @@ export default async function logView(ctx) {
   const save = debounce(() => (removed ? null : db.put('logs', log)), 300);
   ctx.onLeave(() => save.flush());
 
-  const hasFeel = log.type !== 'strength';
+  const hasFeel = !isExerciseType(log.type);
   ctx.app.innerHTML = `
     <div class="topbar">
       ${backLink(dayHref, fmt.short(fromKey(log.date)))}
@@ -311,7 +311,7 @@ export default async function logView(ctx) {
   `;
 
   const body = ctx.app.querySelector('#body');
-  if (log.type === 'strength') renderStrength(body, log, prior, save);
+  if (isExerciseType(log.type)) renderStrength(body, log, prior, save);
   else if (isDistanceType(log.type)) renderDistance(body, log, prior, save);
   else renderDuration(body, log, prior, save);
 

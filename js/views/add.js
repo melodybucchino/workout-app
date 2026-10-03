@@ -1,6 +1,6 @@
 import * as db from '../db.js';
 import {
-  TYPES, TYPE_ORDER, ui, uid, esc, fromKey, fmt, byOrder, priorLogs, previousExercise, isTimed,
+  TYPES, TYPE_ORDER, isExerciseType, ui, uid, esc, fromKey, fmt, byOrder, priorLogs, previousExercise, isTimed,
   templateShortDesc, icon,
 } from '../util.js';
 
@@ -21,7 +21,7 @@ export async function createLog(template, date) {
   };
   const prior = priorLogs(logs, log);
 
-  if (template.type === 'strength') {
+  if (isExerciseType(template.type)) {
     // Pre-fill every exercise with what was done the last time this workout was logged.
     log.exercises = (template.exercises || []).map(e => {
       const timed = isTimed(e);

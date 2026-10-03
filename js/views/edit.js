@@ -1,8 +1,8 @@
 import * as db from '../db.js';
-import { TYPES, uid, esc, normName, parseNumber, backLink, icon } from '../util.js';
+import { TYPES, isExerciseType, uid, esc, normName, parseNumber, backLink, icon } from '../util.js';
 
 // Type chips follow the design's order.
-const TYPE_CHIPS = ['run', 'walk', 'strength', 'mobility', 'class'];
+const TYPE_CHIPS = ['run', 'walk', 'strength', 'core', 'mobility', 'class'];
 
 const RECORDS = {
   run: ['Distance (km)', 'Time', 'Pace (calculated)', 'How it felt', 'Notes'],
@@ -53,7 +53,7 @@ function enableReorder(list, onMove) {
   });
 }
 
-// `modes` (strength only) adds a Reps/Time toggle to each row.
+// `modes` (strength and core only) adds a Reps/Time toggle to each row.
 function listEditor(items, { label, placeholder, modes }) {
   const rows = items.map((name, i) => {
     const timed = modes?.[i] === 'time';
@@ -108,10 +108,10 @@ export default async function edit(ctx) {
   const render = () => {
     const t = draft.type;
     let section = '';
-    if (t === 'strength') {
+    if (isExerciseType(t)) {
       section = listEditor(draft.exercises.map(e => e.name), {
         label: 'Exercises',
-        placeholder: 'Add an exercise, e.g. Goblet Squat',
+        placeholder: t === 'core' ? 'Add an exercise, e.g. Dead Bug' : 'Add an exercise, e.g. Goblet Squat',
         modes: draft.exercises.map(e => e.mode),
       });
     } else {
@@ -142,7 +142,7 @@ export default async function edit(ctx) {
 
       ${section}
 
-      <p class="form-note">Changes here only affect future logs. Workouts you've already logged keep their own ${t === 'strength' ? 'reps, times and weights' : 'details'}.</p>
+      <p class="form-note">Changes here only affect future logs. Workouts you've already logged keep their own ${isExerciseType(t) ? 'reps, times and weights' : 'details'}.</p>
       ${isNew ? '' : '<button class="btn btn-danger btn-block" id="delete">Delete workout</button>'}
     `;
     wire();
@@ -160,8 +160,8 @@ export default async function edit(ctx) {
       draft.durationMin = v ? Math.round(v) : null;
     });
 
-    // Shared list editor: exercises for strength, movements for mobility.
-    const isStrength = draft.type === 'strength';
+    // Shared list editor: exercises for strength/core, movements for mobility.
+    const isStrength = isExerciseType(draft.type);
     const items = () => (isStrength ? draft.exercises.map(e => e.name) : draft.movements);
     const setOrder = (from, to) => {
       const arr = isStrength ? draft.exercises : draft.movements;

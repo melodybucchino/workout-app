@@ -2,12 +2,15 @@
 
 export const TYPES = {
   strength: { label: 'Strength', short: 'Strength' },
+  core: { label: 'Core', short: 'Core' },
   run: { label: 'Run', short: 'Run' },
   walk: { label: 'Walk', short: 'Walk' },
   mobility: { label: 'Mobility', short: 'Mobility' },
   class: { label: 'Workout Class', short: 'Class' },
 };
-export const TYPE_ORDER = ['strength', 'run', 'walk', 'mobility', 'class'];
+export const TYPE_ORDER = ['strength', 'core', 'run', 'walk', 'mobility', 'class'];
+// Types logged as exercises with sets (kg + reps or time).
+export const isExerciseType = t => t === 'strength' || t === 'core';
 export const isDistanceType = t => t === 'run' || t === 'walk';
 
 // UI state that should survive moving between screens.
@@ -241,7 +244,7 @@ function weightBadge(ex, prevEx, sameText) {
 
 export function logSubtitle(log) {
   const t = TYPES[log.type].short;
-  if (log.type === 'strength') {
+  if (isExerciseType(log.type)) {
     const n = (log.exercises || []).length;
     return `${t} · ${n} exercise${n === 1 ? '' : 's'}`;
   }
@@ -267,7 +270,8 @@ export function exerciseList(names, max = 3) {
 export function templateSummary(t) {
   const label = TYPES[t.type].short;
   switch (t.type) {
-    case 'strength': {
+    case 'strength':
+    case 'core': {
       const names = (t.exercises || []).map(e => e.name);
       return names.length ? `${label} · ${exerciseList(names)}` : `${label} · No exercises yet`;
     }
@@ -282,7 +286,7 @@ export function templateSummary(t) {
 }
 
 export function templateShortDesc(t) {
-  if (t.type === 'strength') {
+  if (isExerciseType(t.type)) {
     const n = (t.exercises || []).length;
     return `${n} exercise${n === 1 ? '' : 's'}`;
   }
