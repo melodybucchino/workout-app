@@ -1,7 +1,7 @@
 // Offline support: every app file is cached on install. Requests are served
 // from the cache straight away and refreshed in the background, so an update
 // shows up on the next launch. Bump VERSION when files are added or removed.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `workouts-${VERSION}`;
 const FILES = [
   './',
@@ -30,7 +30,11 @@ const FILES = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the browser's HTTP cache (GitHub Pages allows 10 min),
+  // so a new version never gets stored with stale files.
+  event.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
@@ -48,7 +52,8 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(caches.open(CACHE).then(async cache => {
     const cached = await cache.match(key, { ignoreSearch: true });
-    const network = fetch(req)
+    // Navigation requests can't be re-initialised, so fetch them by URL.
+    const network = fetch(req.mode === 'navigate' ? new Request(req.url) : req, { cache: 'no-cache' })
       .then(res => {
         if (res.ok) cache.put(key, res.clone());
         return res;
