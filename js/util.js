@@ -32,14 +32,27 @@ export function debounce(fn, ms) {
 }
 
 let toastTimer;
-export function toast(msg) {
+export function dismissToast() {
+  clearTimeout(toastTimer);
   document.querySelector('.toast')?.remove();
+}
+// Optional action adds a button, e.g. { label: 'Undo', onClick }.
+export function toast(msg, action) {
+  dismissToast();
   const el = document.createElement('div');
   el.className = 'toast';
-  el.textContent = msg;
+  el.setAttribute('role', 'status');
+  const text = document.createElement('span');
+  text.textContent = msg;
+  el.appendChild(text);
+  if (action) {
+    const btn = document.createElement('button');
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => { dismissToast(); action.onClick(); });
+    el.appendChild(btn);
+  }
   document.body.appendChild(el);
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.remove(), 2400);
+  toastTimer = setTimeout(() => el.remove(), action ? 5000 : 2400);
 }
 
 /* ---------- Dates (local time, stored as YYYY-MM-DD) ---------- */

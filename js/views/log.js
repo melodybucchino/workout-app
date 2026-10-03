@@ -1,6 +1,6 @@
 import * as db from '../db.js';
 import {
-  TYPES, isExerciseType, esc, fromKey, fmt, isDistanceType, debounce, priorLogs, previousExercise,
+  TYPES, isExerciseType, toast, dismissToast, esc, fromKey, fmt, isDistanceType, debounce, priorLogs, previousExercise,
   progressBadge, isTimed, holdDigits, parseHold, formatHold, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
   parseDuration, formatDuration, digitsToTime, paceOf, formatKm, formatIncline, backLink, icon,
 } from '../util.js';
@@ -30,15 +30,16 @@ function exerciseCard(ex, i, prior) {
   const prev = previousExercise(prior, ex)?.exercise;
   const rows = ex.sets.map((s, j) => `
     <tr>
-      <td class="col-set"><button class="set-num" data-remove-set="${j}" aria-label="Set ${j + 1} (tap to remove)">${j + 1}</button></td>
+      <td class="col-set"><span class="set-num">${j + 1}</span></td>
       <td><span class="last-time">${esc(lastSetText(prev?.sets[j], timed))}</span></td>
       <td class="col-kg"><input class="num-input" data-set="${j}" data-field="kg" inputmode="decimal" enterkeyhint="next" value="${s.kg != null ? fmtW(s.kg) : ''}" aria-label="Set ${j + 1} weight"></td>
       <td class="col-reps">${amountCell(s, j, timed)}</td>
+      <td class="col-rm"><button class="rm-set" data-remove-set="${j}" aria-label="Remove set ${j + 1}">${icon.x}</button></td>
     </tr>`).join('');
   return `<section class="card ex-card" data-ex="${i}">
     <div class="ex-card-head"><h3>${esc(ex.name)}</h3><span class="ex-badge">${badgeHtml(progressBadge(ex, prev, true))}</span></div>
     <table class="set-table">
-      <thead><tr><th class="col-set">Set</th><th>Last time</th><th class="col-kg c">${getUnit()}</th><th class="col-reps c">${timed ? 'Time' : 'Reps'}</th></tr></thead>
+      <thead><tr><th class="col-set">Set</th><th>Last time</th><th class="col-kg c">${getUnit()}</th><th class="col-reps c">${timed ? 'Time' : 'Reps'}</th><th class="col-rm"></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <button class="btn-dashed" data-add-set>${icon.plus}Add set</button>
@@ -132,12 +133,21 @@ function renderStrength(root, log, prior, save) {
     }
     const rm = e.target.closest('[data-remove-set]');
     if (rm) {
+      // Remove straight away; the toast offers Undo instead of asking first.
       const j = Number(rm.dataset.removeSet);
-      if (!confirm(`Remove set ${j + 1} of ${ex.name}?`)) return;
-      ex.sets.splice(j, 1);
+      const [removed] = ex.sets.splice(j, 1);
       rerenderCard(i);
       updateSummary();
       save();
+      toast(`${ex.name}: set ${j + 1} removed`, {
+        label: 'Undo',
+        onClick: () => {
+          ex.sets.splice(Math.min(j, ex.sets.length), 0, removed);
+          rerenderCard(i);
+          updateSummary();
+          save();
+        },
+      });
     }
   });
 }
@@ -290,7 +300,7 @@ export default async function logView(ctx) {
   const dayHref = `#/day/${log.date}`;
   let removed = false;
   const save = debounce(() => (removed ? null : db.put('logs', log)), 300);
-  ctx.onLeave(() => save.flush());
+  ctx.onLeave(() => { dismissToast(); return save.flush(); });
 
   const hasFeel = !isExerciseType(log.type);
   ctx.app.innerHTML = `

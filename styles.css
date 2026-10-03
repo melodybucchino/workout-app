@@ -458,17 +458,25 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
 }
 .set-table th.c, .set-table td.c { text-align: center; }
 .set-table td { padding: 4px 0; vertical-align: middle; }
-.set-table .col-set { width: 44px; }
-.set-table .col-kg { width: 82px; padding-right: 6px; }
-.set-table .col-reps { width: 70px; }
+.set-table .col-set { width: 38px; }
+.set-table .col-kg { width: 72px; padding-right: 6px; }
+.set-table .col-reps { width: 64px; }
+.set-table .col-rm { width: 38px; }
 .set-num {
-  width: 30px; height: 30px; border-radius: 50%;
+  width: 28px; height: 28px; border-radius: 50%;
   background: var(--neutral-bg);
   font-size: 13px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center;
-  position: relative;
 }
-.set-num::after { content: ""; position: absolute; inset: -8px; }
+.rm-set {
+  width: 34px; height: 46px;
+  margin-left: 4px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-2);
+}
+.rm-set:active { background: var(--neutral-bg); color: var(--danger); }
+.rm-set svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
 .last-time { color: var(--text-2); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .num-input {
   width: 100%;
@@ -622,12 +630,28 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
   z-index: 40;
   max-width: calc(100% - 40px);
   text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+}
+.toast span { overflow: hidden; text-overflow: ellipsis; }
+.toast button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  margin: -6px -8px -6px 0;
+  border-radius: 9px;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 @media (max-width: 360px) {
   :root { --gutter: 14px; }
   .cal-month, .page-title { font-size: 31px; }
-  .set-table .col-kg { width: 70px; }
-  .set-table .col-reps { width: 60px; }
+  .set-table .col-kg { width: 62px; }
+  .set-table .col-reps { width: 56px; }
+  .set-table .col-rm { width: 34px; }
+  .rm-set { width: 30px; }
   .stat-val { font-size: 22px; }
 }
