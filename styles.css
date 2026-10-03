@@ -510,7 +510,7 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
 }
 .input-card .big-input:focus { border-color: var(--text); background: #fff; }
 .input-card .big-input::placeholder { color: #B9B4AA; }
-.pace-card { margin-top: 12px; }
+.pace-card, .incline-card { margin-top: 12px; }
 .pace-card .big { font-size: 52px; }
 .pace-card .big small { font-size: 22px; }
 .pace-card .pill { margin-top: 8px; }

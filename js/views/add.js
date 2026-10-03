@@ -33,6 +33,7 @@ export async function createLog(template, date) {
   } else if (template.type === 'run' || template.type === 'walk') {
     log.distanceKm = null;
     log.durationSec = null;
+    if (template.type === 'walk') log.incline = null;
   } else {
     log.durationMin = template.durationMin ?? prior[0]?.durationMin ?? null;
     if (template.type === 'mobility') log.movements = [...(template.movements || [])];

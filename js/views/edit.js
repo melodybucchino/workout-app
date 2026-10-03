@@ -6,7 +6,7 @@ const TYPE_CHIPS = ['run', 'walk', 'strength', 'mobility', 'class'];
 
 const RECORDS = {
   run: ['Distance (km)', 'Time', 'Pace (calculated)', 'How it felt', 'Notes'],
-  walk: ['Distance (km)', 'Time', 'Pace (calculated)', 'How it felt', 'Notes'],
+  walk: ['Distance (km)', 'Time', 'Incline', 'Pace (calculated)', 'How it felt', 'Notes'],
   class: ['Duration (min)', 'How it felt', 'Notes'],
   mobility: ['Duration (min)', 'Movements', 'How it felt', 'Notes'],
 };

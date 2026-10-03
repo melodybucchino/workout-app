@@ -2,7 +2,7 @@ import * as db from '../db.js';
 import {
   TYPES, esc, fromKey, fmt, isDistanceType, debounce, priorLogs, previousExercise,
   weightBadge, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
-  parseDuration, formatDuration, digitsToTime, paceOf, formatKm, backLink, icon,
+  parseDuration, formatDuration, digitsToTime, paceOf, formatKm, formatIncline, backLink, icon,
 } from '../util.js';
 
 const FEELS = ['Easy', 'Moderate', 'Hard'];
@@ -123,6 +123,8 @@ function renderStrength(root, log, prior, save) {
 function renderDistance(root, log, prior, save) {
   const prevLog = prior.find(l => paceOf(l));
   const prevPace = paceOf(prevLog);
+  const isWalk = log.type === 'walk';
+  const prevIncline = prior.find(l => l.incline != null)?.incline;
 
   root.innerHTML = `
     <div class="input-pair">
@@ -137,6 +139,11 @@ function renderDistance(root, log, prior, save) {
           value="${log.durationSec ? formatDuration(log.durationSec) : ''}" placeholder="${prevLog ? formatDuration(prevLog.durationSec) : '00:00'}">
       </div>
     </div>
+    ${isWalk ? `<div class="card input-card incline-card">
+      <label for="incline">Incline</label>
+      <input id="incline" class="big-input" inputmode="decimal" autocomplete="off"
+        value="${log.incline != null ? Math.round(log.incline * 10) / 10 : ''}" placeholder="${prevIncline ?? '0'}">
+    </div>` : ''}
     <section class="summary-card pace-card">
       <div class="label">Pace · calculated</div>
       <div class="big"><span id="pace">–:––</span><small>/km</small></div>
@@ -145,7 +152,7 @@ function renderDistance(root, log, prior, save) {
     <section class="card last-card">
       ${prevLog
         ? `<div class="label">Last time · ${fmt.short(fromKey(prevLog.date))}</div>
-           <div class="val">${formatKm(prevLog.distanceKm)} km · ${formatDuration(prevLog.durationSec)} · ${formatDuration(prevPace)} /km</div>`
+           <div class="val">${formatKm(prevLog.distanceKm)} km · ${formatDuration(prevLog.durationSec)} · ${formatDuration(prevPace)} /km${isWalk && prevLog.incline != null ? ` · ${formatIncline(prevLog.incline)} incline` : ''}</div>`
         : `<div class="label">Last time</div><div class="val">First time logging this workout</div>`}
     </section>
   `;
@@ -175,6 +182,11 @@ function renderDistance(root, log, prior, save) {
     timeIn.value = digitsToTime(timeIn.value);
     log.durationSec = parseDuration(timeIn.value);
     update();
+    save();
+  });
+  root.querySelector('#incline')?.addEventListener('input', e => {
+    // 0 is a real value (flat), so only an empty field clears it.
+    log.incline = parseNumber(e.target.value);
     save();
   });
   timeIn.addEventListener('blur', () => {

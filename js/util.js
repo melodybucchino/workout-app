@@ -109,6 +109,7 @@ export function formatKm(km) {
   if (km == null) return '';
   return (Math.round(km * 100) / 100).toFixed(2).replace(/0$/, '');
 }
+export const formatIncline = v => String(Math.round(v * 10) / 10);
 export const formatKm1 = km => (Math.round((km || 0) * 10) / 10).toFixed(1);
 
 /* ---------- Weights (always stored in kg) ---------- */
@@ -204,6 +205,7 @@ export function logSubtitle(log) {
     const bits = [t];
     if (log.distanceKm) bits.push(`${formatKm(log.distanceKm)} km`);
     if (log.durationSec) bits.push(formatDuration(log.durationSec));
+    if (log.type === 'walk' && log.incline != null) bits.push(`${formatIncline(log.incline)} incline`);
     return bits.join(' · ');
   }
   return log.durationMin ? `${t} · ${log.durationMin} min` : t;
@@ -226,7 +228,7 @@ export function templateSummary(t) {
       return names.length ? `${label} · ${exerciseList(names)}` : `${label} · No exercises yet`;
     }
     case 'run': return `${label} · Distance · time · pace`;
-    case 'walk': return `${label} · Distance · time`;
+    case 'walk': return `${label} · Distance · time · incline`;
     case 'mobility': {
       const n = (t.movements || []).length;
       return `${label} · Duration${n ? ` · ${n} movement${n === 1 ? '' : 's'}` : ''}`;
@@ -240,7 +242,8 @@ export function templateShortDesc(t) {
     const n = (t.exercises || []).length;
     return `${n} exercise${n === 1 ? '' : 's'}`;
   }
-  if (isDistanceType(t.type)) return 'Distance + time';
+  if (t.type === 'walk') return 'Distance, time + incline';
+  if (t.type === 'run') return 'Distance + time';
   return t.durationMin ? `${t.durationMin} min` : 'Duration';
 }
 

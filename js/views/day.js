@@ -1,7 +1,7 @@
 import * as db from '../db.js';
 import {
   TYPES, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isDistanceType,
-  formatKm, formatDuration, paceOf, fmtW, getUnit, topKg, countedSets, priorLogs,
+  formatKm, formatDuration, formatIncline, paceOf, fmtW, getUnit, topKg, countedSets, priorLogs,
   previousExercise, weightBadge, badgeHtml, backLink, icon,
 } from '../util.js';
 import { dotsHtml, groupByDate } from './calendar.js';
@@ -28,7 +28,8 @@ function distanceBody(log) {
     <div><div class="stat-val">${log.distanceKm ? formatKm(log.distanceKm) : '–'}<small>km</small></div><div class="stat-label">Distance</div></div>
     <div><div class="stat-val">${log.durationSec ? formatDuration(log.durationSec) : '–'}</div><div class="stat-label">Time</div></div>
     <div><div class="stat-val">${pace ? formatDuration(pace) : '–'}<small>/km</small></div><div class="stat-label">Pace</div></div>
-  </div>`;
+  </div>
+  ${log.type === 'walk' && log.incline != null ? `<div class="meta feel-tag">Incline ${formatIncline(log.incline)}</div>` : ''}`;
 }
 
 function durationBody(log) {
