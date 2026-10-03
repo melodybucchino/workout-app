@@ -181,10 +181,13 @@ const hasData = ex => ex && ex.sets.some(setHasData);
 
 // The most recent earlier time this exercise was done in this workout,
 // measured the same way (switching reps <-> time starts a fresh history).
+// Matched by the saved exercise it came from, so renames keep their history,
+// or by name for anything without that link.
 export function previousExercise(prior, ex) {
   const n = normName(ex.name);
+  const same = e => (ex.exId && e.exId === ex.exId) || normName(e.name) === n;
   for (const l of prior) {
-    const found = (l.exercises || []).find(e => normName(e.name) === n && isTimed(e) === isTimed(ex));
+    const found = (l.exercises || []).find(e => same(e) && isTimed(e) === isTimed(ex));
     if (hasData(found)) return { log: l, exercise: found };
   }
   return null;

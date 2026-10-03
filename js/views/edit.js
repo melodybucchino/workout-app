@@ -63,7 +63,7 @@ function listEditor(items, { label, placeholder, modes }) {
     return `
     <div class="edit-row">
       <span class="drag-handle" aria-hidden="true">${icon.grip}</span>
-      <span class="name">${esc(name)}</span>
+      <button class="name name-btn" data-rename="${i}" aria-label="${esc(name)}. Tap to rename.">${esc(name)}</button>
       ${toggle}
       <button class="x-btn" data-rm="${i}" aria-label="Remove ${esc(name)}">${icon.x}</button>
     </div>`;
@@ -71,7 +71,7 @@ function listEditor(items, { label, placeholder, modes }) {
   return `
     <div class="section-label">${label} · ${items.length}</div>
     ${rows ? `<div class="card edit-list" id="list">${rows}</div>` : ''}
-    ${modes && rows ? '<p class="list-hint">Tap <b>Reps</b> to switch an exercise to <b>Time</b> for holds like planks (logged as m:ss).</p>' : ''}
+    ${rows ? `<p class="list-hint">Tap a name to rename it.${modes ? ' Tap <b>Reps</b> to switch an exercise to <b>Time</b> for holds like planks (logged as m:ss).' : ''}</p>` : ''}
     <div class="add-line">
       <input class="field" id="item-in" placeholder="${esc(placeholder)}" enterkeyhint="done" autocomplete="off" autocapitalize="words">
       <button class="btn btn-accent" id="item-add">Add</button>
@@ -188,6 +188,49 @@ export default async function edit(ctx) {
       $('#item-add').addEventListener('click', addItem);
       itemIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } });
       itemIn.addEventListener('input', () => { $('#item-err').hidden = true; });
+      // Rename in place. The row is patched rather than re-rendered, so a tap on
+      // Save (which blurs the field first) still lands on the Save button.
+      ctx.app.querySelectorAll('[data-rename]').forEach(btn => btn.addEventListener('click', () => {
+        const i = Number(btn.dataset.rename);
+        const list = isStrength ? draft.exercises : draft.movements;
+        const current = () => (isStrength ? list[i].name : list[i]);
+        const row = btn.closest('.edit-row');
+        const input = document.createElement('input');
+        input.className = 'rename-input';
+        input.value = current();
+        input.setAttribute('aria-label', `Rename ${current()}`);
+        input.autocapitalize = 'words';
+        input.enterKeyHint = 'done';
+        btn.replaceWith(input);
+        input.focus();
+        input.select();
+        let finished = false;
+        const finish = keep => {
+          if (finished) return;
+          finished = true;
+          const name = input.value.trim().replace(/\s+/g, ' ');
+          const err = $('#item-err');
+          if (keep && name && name !== current()) {
+            if (items().some((n, k) => k !== i && normName(n) === normName(name))) {
+              err.textContent = `${name} is already in this workout.`;
+              err.hidden = false;
+            } else {
+              if (isStrength) list[i].name = name;
+              else list[i] = name;
+              err.hidden = true;
+            }
+          }
+          btn.textContent = current();
+          btn.setAttribute('aria-label', `${current()}. Tap to rename.`);
+          row.querySelector('.x-btn').setAttribute('aria-label', `Remove ${current()}`);
+          input.replaceWith(btn);
+        };
+        input.addEventListener('blur', () => finish(true));
+        input.addEventListener('keydown', ev => {
+          if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+          if (ev.key === 'Escape') { finish(false); }
+        });
+      }));
       ctx.app.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
         (isStrength ? draft.exercises : draft.movements).splice(Number(b.dataset.rm), 1);
         render();

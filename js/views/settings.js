@@ -1,4 +1,5 @@
 import * as db from '../db.js';
+import { linkExerciseIds } from '../migrate.js';
 import { getUnit, setUnitCache, todayKey, toast } from '../util.js';
 
 async function saveFile(json, filename) {
@@ -89,6 +90,7 @@ export default async function settings(ctx) {
       const ok = confirm(`Replace everything on this device with this backup (${data.templates?.length ?? 0} workouts, ${data.logs?.length ?? 0} logs)?`);
       if (!ok) return;
       await db.importAll(data);
+      await linkExerciseIds();
       setUnitCache(await db.getSetting('unit', 'kg'));
       await ctx.rerender();
       toast('Backup imported.');

@@ -564,6 +564,20 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
 .drag-handle svg { width: 16px; height: 16px; fill: currentColor; }
 .edit-row .name { flex: 1; font-weight: 700; font-size: 17px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .edit-row .name.no-handle { padding-left: 16px; }
+.name-btn { text-align: left; align-self: stretch; min-height: 52px; padding: 0; cursor: text; }
+.rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  margin-right: 6px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--text);
+  background: #fff;
+  font-weight: 700;
+  font-size: 17px;
+  outline: none;
+}
 .edit-row .x-btn {
   width: 52px; height: 52px; flex: none;
   display: flex; align-items: center; justify-content: center;

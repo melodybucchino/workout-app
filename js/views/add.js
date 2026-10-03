@@ -26,13 +26,13 @@ export async function createLog(template, date) {
     log.exercises = (template.exercises || []).map(e => {
       const timed = isTimed(e);
       const blank = () => (timed ? { kg: null, sec: null } : { kg: null, reps: null });
-      const prev = previousExercise(prior, e);
+      const prev = previousExercise(prior, { exId: e.id, name: e.name, mode: e.mode });
       const sets = prev
         ? prev.exercise.sets
           .filter(s => s.kg != null || (timed ? s.sec != null : s.reps != null))
           .map(s => (timed ? { kg: s.kg, sec: s.sec ?? null } : { kg: s.kg, reps: s.reps ?? null }))
         : [];
-      const ex = { name: e.name, sets: sets.length ? sets : [blank(), blank(), blank()] };
+      const ex = { exId: e.id, name: e.name, sets: sets.length ? sets : [blank(), blank(), blank()] };
       if (timed) ex.mode = 'time';
       return ex;
     });
