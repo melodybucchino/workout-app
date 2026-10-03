@@ -560,6 +560,23 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
   color: var(--text-2);
 }
 .edit-row .x-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.mode-btn {
+  flex: none;
+  min-width: 58px;
+  height: 32px;
+  padding: 0 10px;
+  margin-right: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--field);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  position: relative;
+}
+.mode-btn::after { content: ""; position: absolute; inset: -6px -2px; }
+.mode-btn.timed { background: var(--dark); border-color: var(--dark); color: #fff; }
+.list-hint { color: var(--text-2); font-size: 14px; margin: 8px 2px 0; line-height: 1.4; }
 .add-line { display: flex; gap: 10px; margin-top: 12px; }
 .add-line .field { flex: 1; min-width: 0; border-style: dashed; border-width: 1.5px; border-color: #CFCAC0; background: transparent; }
 .add-line .btn { min-height: 52px; border-radius: 14px; padding: 0 20px; }

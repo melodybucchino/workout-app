@@ -1,6 +1,6 @@
 import * as db from '../db.js';
 import {
-  TYPES, TYPE_ORDER, ui, uid, esc, fromKey, fmt, byOrder, priorLogs, previousExercise,
+  TYPES, TYPE_ORDER, ui, uid, esc, fromKey, fmt, byOrder, priorLogs, previousExercise, isTimed,
   templateShortDesc, icon,
 } from '../util.js';
 
@@ -24,11 +24,17 @@ export async function createLog(template, date) {
   if (template.type === 'strength') {
     // Pre-fill every exercise with what was done the last time this workout was logged.
     log.exercises = (template.exercises || []).map(e => {
-      const prev = previousExercise(prior, e.name);
+      const timed = isTimed(e);
+      const blank = () => (timed ? { kg: null, sec: null } : { kg: null, reps: null });
+      const prev = previousExercise(prior, e);
       const sets = prev
-        ? prev.exercise.sets.filter(s => s.kg != null || s.reps != null).map(s => ({ kg: s.kg, reps: s.reps }))
+        ? prev.exercise.sets
+          .filter(s => s.kg != null || (timed ? s.sec != null : s.reps != null))
+          .map(s => (timed ? { kg: s.kg, sec: s.sec ?? null } : { kg: s.kg, reps: s.reps ?? null }))
         : [];
-      return { name: e.name, sets: sets.length ? sets : [{ kg: null, reps: null }, { kg: null, reps: null }, { kg: null, reps: null }] };
+      const ex = { name: e.name, sets: sets.length ? sets : [blank(), blank(), blank()] };
+      if (timed) ex.mode = 'time';
+      return ex;
     });
   } else if (template.type === 'run' || template.type === 'walk') {
     log.distanceKm = null;

@@ -53,16 +53,25 @@ function enableReorder(list, onMove) {
   });
 }
 
-function listEditor(items, { label, placeholder }) {
-  const rows = items.map((name, i) => `
+// `modes` (strength only) adds a Reps/Time toggle to each row.
+function listEditor(items, { label, placeholder, modes }) {
+  const rows = items.map((name, i) => {
+    const timed = modes?.[i] === 'time';
+    const toggle = modes
+      ? `<button class="mode-btn ${timed ? 'timed' : ''}" data-mode="${i}" aria-label="${esc(name)} is measured by ${timed ? 'time' : 'reps'}. Tap to switch.">${timed ? 'Time' : 'Reps'}</button>`
+      : '';
+    return `
     <div class="edit-row">
       <span class="drag-handle" aria-hidden="true">${icon.grip}</span>
       <span class="name">${esc(name)}</span>
+      ${toggle}
       <button class="x-btn" data-rm="${i}" aria-label="Remove ${esc(name)}">${icon.x}</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   return `
     <div class="section-label">${label} · ${items.length}</div>
     ${rows ? `<div class="card edit-list" id="list">${rows}</div>` : ''}
+    ${modes && rows ? '<p class="list-hint">Tap <b>Reps</b> to switch an exercise to <b>Time</b> for holds like planks (logged as m:ss).</p>' : ''}
     <div class="add-line">
       <input class="field" id="item-in" placeholder="${esc(placeholder)}" enterkeyhint="done" autocomplete="off" autocapitalize="words">
       <button class="btn btn-accent" id="item-add">Add</button>
@@ -100,7 +109,11 @@ export default async function edit(ctx) {
     const t = draft.type;
     let section = '';
     if (t === 'strength') {
-      section = listEditor(draft.exercises.map(e => e.name), { label: 'Exercises', placeholder: 'Add an exercise, e.g. Goblet Squat' });
+      section = listEditor(draft.exercises.map(e => e.name), {
+        label: 'Exercises',
+        placeholder: 'Add an exercise, e.g. Goblet Squat',
+        modes: draft.exercises.map(e => e.mode),
+      });
     } else {
       section = `
         ${t === 'mobility' || t === 'class' ? `
@@ -129,7 +142,7 @@ export default async function edit(ctx) {
 
       ${section}
 
-      <p class="form-note">Changes here only affect future logs. Workouts you've already logged keep their own ${t === 'strength' ? 'reps and weights' : 'details'}.</p>
+      <p class="form-note">Changes here only affect future logs. Workouts you've already logged keep their own ${t === 'strength' ? 'reps, times and weights' : 'details'}.</p>
       ${isNew ? '' : '<button class="btn btn-danger btn-block" id="delete">Delete workout</button>'}
     `;
     wire();
@@ -177,6 +190,12 @@ export default async function edit(ctx) {
       itemIn.addEventListener('input', () => { $('#item-err').hidden = true; });
       ctx.app.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
         (isStrength ? draft.exercises : draft.movements).splice(Number(b.dataset.rm), 1);
+        render();
+      }));
+      ctx.app.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+        const ex = draft.exercises[Number(b.dataset.mode)];
+        if (ex.mode === 'time') delete ex.mode;
+        else ex.mode = 'time';
         render();
       }));
       const list = $('#list');

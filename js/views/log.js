@@ -1,7 +1,7 @@
 import * as db from '../db.js';
 import {
   TYPES, esc, fromKey, fmt, isDistanceType, debounce, priorLogs, previousExercise,
-  weightBadge, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
+  progressBadge, isTimed, holdDigits, parseHold, formatHold, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
   parseDuration, formatDuration, digitsToTime, paceOf, formatKm, formatIncline, backLink, icon,
 } from '../util.js';
 
@@ -9,27 +9,36 @@ const FEELS = ['Easy', 'Moderate', 'Hard'];
 
 /* ---------- Strength ---------- */
 
-function lastSetText(s) {
+function lastSetText(s, timed) {
   if (!s) return '—';
-  if (s.kg != null && s.reps != null) return `${fmtW(s.kg)} ${getUnit()} × ${s.reps}`;
-  if (s.kg != null) return `${fmtW(s.kg)} ${getUnit()}`;
-  if (s.reps != null) return `${s.reps} reps`;
+  const kg = s.kg != null ? `${fmtW(s.kg)} ${getUnit()}` : null;
+  const amount = timed ? (s.sec ? formatHold(s.sec) : null) : (s.reps != null ? String(s.reps) : null);
+  if (kg && amount) return `${kg} × ${amount}`;
+  if (kg) return kg;
+  if (amount) return timed ? amount : `${amount} reps`;
   return '—';
 }
 
+function amountCell(s, j, timed) {
+  return timed
+    ? `<input class="num-input" data-set="${j}" data-field="sec" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" value="${formatHold(s.sec)}" placeholder="0:00" aria-label="Set ${j + 1} time, minutes and seconds">`
+    : `<input class="num-input" data-set="${j}" data-field="reps" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" value="${s.reps ?? ''}" aria-label="Set ${j + 1} reps">`;
+}
+
 function exerciseCard(ex, i, prior) {
-  const prev = previousExercise(prior, ex.name)?.exercise;
+  const timed = isTimed(ex);
+  const prev = previousExercise(prior, ex)?.exercise;
   const rows = ex.sets.map((s, j) => `
     <tr>
       <td class="col-set"><button class="set-num" data-remove-set="${j}" aria-label="Set ${j + 1} (tap to remove)">${j + 1}</button></td>
-      <td><span class="last-time">${esc(lastSetText(prev?.sets[j]))}</span></td>
+      <td><span class="last-time">${esc(lastSetText(prev?.sets[j], timed))}</span></td>
       <td class="col-kg"><input class="num-input" data-set="${j}" data-field="kg" inputmode="decimal" enterkeyhint="next" value="${s.kg != null ? fmtW(s.kg) : ''}" aria-label="Set ${j + 1} weight"></td>
-      <td class="col-reps"><input class="num-input" data-set="${j}" data-field="reps" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" value="${s.reps ?? ''}" aria-label="Set ${j + 1} reps"></td>
+      <td class="col-reps">${amountCell(s, j, timed)}</td>
     </tr>`).join('');
   return `<section class="card ex-card" data-ex="${i}">
-    <div class="ex-card-head"><h3>${esc(ex.name)}</h3><span class="ex-badge">${badgeHtml(weightBadge(ex, prev, 'Same weight'))}</span></div>
+    <div class="ex-card-head"><h3>${esc(ex.name)}</h3><span class="ex-badge">${badgeHtml(progressBadge(ex, prev, true))}</span></div>
     <table class="set-table">
-      <thead><tr><th class="col-set">Set</th><th>Last time</th><th class="col-kg c">${getUnit()}</th><th class="col-reps c">Reps</th></tr></thead>
+      <thead><tr><th class="col-set">Set</th><th>Last time</th><th class="col-kg c">${getUnit()}</th><th class="col-reps c">${timed ? 'Time' : 'Reps'}</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <button class="btn-dashed" data-add-set>${icon.plus}Add set</button>
@@ -82,15 +91,28 @@ function renderStrength(root, log, prior, save) {
     if (input.dataset.field === 'kg') {
       const v = parseNumber(input.value);
       set.kg = v == null ? null : displayToKg(v);
+    } else if (input.dataset.field === 'sec') {
+      // The number pad has no colon, so it's inserted as digits are typed.
+      input.value = holdDigits(input.value);
+      set.sec = parseHold(input.value);
     } else {
       const v = parseNumber(input.value);
       set.reps = v == null ? null : Math.round(v);
     }
-    const prev = previousExercise(prior, log.exercises[i].name)?.exercise;
+    const prev = previousExercise(prior, log.exercises[i])?.exercise;
     input.closest('[data-ex]').querySelector('.ex-badge').innerHTML =
-      badgeHtml(weightBadge(log.exercises[i], prev, 'Same weight'));
+      badgeHtml(progressBadge(log.exercises[i], prev, true));
     updateSummary();
     save();
+  });
+
+  // Tidy holds like 0:75 into 1:15 once the field is left.
+  list.addEventListener('focusout', e => {
+    const input = e.target.closest('input[data-field="sec"]');
+    if (!input) return;
+    const i = Number(input.closest('[data-ex]').dataset.ex);
+    const sec = log.exercises[i].sets[Number(input.dataset.set)].sec;
+    if (sec) input.value = formatHold(sec);
   });
 
   list.addEventListener('click', e => {
@@ -100,7 +122,9 @@ function renderStrength(root, log, prior, save) {
     const ex = log.exercises[i];
     if (e.target.closest('[data-add-set]')) {
       const last = ex.sets[ex.sets.length - 1];
-      ex.sets.push(last ? { kg: last.kg, reps: last.reps } : { kg: null, reps: null });
+      ex.sets.push(isTimed(ex)
+        ? { kg: last?.kg ?? null, sec: last?.sec ?? null }
+        : { kg: last?.kg ?? null, reps: last?.reps ?? null });
       rerenderCard(i);
       updateSummary();
       save();

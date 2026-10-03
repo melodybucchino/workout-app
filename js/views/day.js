@@ -2,7 +2,7 @@ import * as db from '../db.js';
 import {
   TYPES, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isDistanceType,
   formatKm, formatDuration, formatIncline, paceOf, fmtW, getUnit, topKg, countedSets, priorLogs,
-  previousExercise, weightBadge, badgeHtml, backLink, icon,
+  previousExercise, progressBadge, badgeHtml, isTimed, formatHold, backLink, icon,
 } from '../util.js';
 import { dotsHtml, groupByDate } from './calendar.js';
 
@@ -11,12 +11,12 @@ function strengthBody(log, allLogs) {
   const exs = log.exercises || [];
   const sets = exs.reduce((n, e) => n + countedSets(e).length, 0);
   const lines = exs.map(ex => {
-    const reps = countedSets(ex).map(s => s.reps ?? '–').join(', ');
+    const amounts = countedSets(ex).map(s => (isTimed(ex) ? (s.sec ? formatHold(s.sec) : '–') : s.reps ?? '–')).join(', ');
     const top = topKg(ex);
-    const val = [reps, top != null ? `${fmtW(top)} ${getUnit()}` : ''].filter(Boolean).join(' · ') || '—';
-    const prev = previousExercise(prior, ex.name);
+    const val = [amounts, top != null ? `${fmtW(top)} ${getUnit()}` : ''].filter(Boolean).join(' · ') || '—';
+    const prev = previousExercise(prior, ex);
     return `<div class="ex-line"><span class="name">${esc(ex.name)}</span>
-      <span class="val">${esc(val)}</span>${badgeHtml(weightBadge(ex, prev?.exercise), false)}</div>`;
+      <span class="val">${esc(val)}</span>${badgeHtml(progressBadge(ex, prev?.exercise), false)}</div>`;
   }).join('');
   return `<div class="meta">${exs.length} exercise${exs.length === 1 ? '' : 's'} · ${sets} set${sets === 1 ? '' : 's'}</div>
     ${exs.length ? `<div class="ex-lines">${lines}</div>` : ''}`;

@@ -157,16 +157,42 @@ export function priorLogs(logs, log) {
 
 export const normName = s => String(s || '').trim().toLowerCase();
 
-const hasData = ex => ex && ex.sets.some(s => s.kg != null || s.reps != null);
+// Exercises are measured in reps unless set to 'time' (holds like planks).
+export const isTimed = ex => ex?.mode === 'time';
 
-// The most recent earlier time this exercise was done in this workout.
-export function previousExercise(prior, name) {
-  const n = normName(name);
+const setHasData = s => s.kg != null || s.reps != null || s.sec != null;
+const hasData = ex => ex && ex.sets.some(setHasData);
+
+// The most recent earlier time this exercise was done in this workout,
+// measured the same way (switching reps <-> time starts a fresh history).
+export function previousExercise(prior, ex) {
+  const n = normName(ex.name);
   for (const l of prior) {
-    const ex = (l.exercises || []).find(e => normName(e.name) === n);
-    if (hasData(ex)) return { log: l, exercise: ex };
+    const found = (l.exercises || []).find(e => normName(e.name) === n && isTimed(e) === isTimed(ex));
+    if (hasData(found)) return { log: l, exercise: found };
   }
   return null;
+}
+
+// Hold times are typed like a till: 4 -> 0:04, 45 -> 0:45, 130 -> 1:30.
+export function holdDigits(raw) {
+  const d = String(raw).replace(/\D/g, '').replace(/^0+/, '').slice(0, 4);
+  if (!d) return '';
+  const p = d.padStart(3, '0');
+  return `${Number(p.slice(0, -2))}:${p.slice(-2)}`;
+}
+// Lenient: "0:75" counts as 75 seconds.
+export function parseHold(str) {
+  const m = String(str || '').match(/^(\d+):(\d{1,2})$/);
+  if (!m) return null;
+  const sec = Number(m[1]) * 60 + Number(m[2]);
+  return sec > 0 ? sec : null;
+}
+export const formatHold = sec => (sec == null ? '' : formatDuration(sec));
+
+export function topSec(ex) {
+  const ts = (ex?.sets || []).map(s => s.sec).filter(t => t > 0);
+  return ts.length ? Math.max(...ts) : null;
 }
 
 export function topKg(ex) {
@@ -176,14 +202,32 @@ export function topKg(ex) {
 
 export function volumeKg(exercises) {
   let v = 0;
-  for (const ex of exercises || []) for (const s of ex.sets) if (s.kg && s.reps) v += s.kg * s.reps;
+  // Timed holds are left out: weight × seconds isn't a meaningful total.
+  for (const ex of exercises || []) if (!isTimed(ex)) for (const s of ex.sets) if (s.kg && s.reps) v += s.kg * s.reps;
   return v;
 }
 
-export const countedSets = ex => ex.sets.filter(s => s.kg != null || s.reps != null);
+export const countedSets = ex => ex.sets.filter(setHasData);
 
-// { cls: 'up' | '', text } comparing top weights, or null if there's nothing to compare.
-export function weightBadge(ex, prevEx, sameText = 'same') {
+// { cls: 'up' | '', text } comparing with last time, or null if there's nothing to compare.
+// Reps exercises compare top weight. Timed ones compare weight when it changed,
+// otherwise the longest hold. `long` picks the wording used on the log screen.
+export function progressBadge(ex, prevEx, long = false) {
+  if (isTimed(ex)) {
+    const w = weightBadge(ex, prevEx, null);
+    if (w && w.dir !== 0) return w;
+    const now = topSec(ex);
+    const before = topSec(prevEx);
+    if (now == null || before == null) return null;
+    const diff = now - before;
+    if (diff === 0) return { cls: '', text: long ? 'Same time' : 'same', dir: 0 };
+    const amt = Math.abs(diff) < 60 ? `${Math.abs(diff)} s` : formatDuration(Math.abs(diff));
+    return diff > 0 ? { cls: 'up', text: `+${amt}`, dir: 1 } : { cls: '', text: `\u2212${amt}`, dir: -1 };
+  }
+  return weightBadge(ex, prevEx, long ? 'Same weight' : 'same');
+}
+
+function weightBadge(ex, prevEx, sameText) {
   const now = topKg(ex);
   const before = topKg(prevEx);
   if (now == null || before == null) return null;
