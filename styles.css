@@ -49,8 +49,7 @@
 
   --strength: #E4572E;
   --core: #D6489B;
-  --run: #2F6FEB;
-  --walk: #16A394;
+  --cardio: #2F6FEB;
   --mobility: #9B5DE5;
   --class: #E9A23B;
 
@@ -163,8 +162,7 @@ body.has-tabbar .tabbar { display: flex; }
 .dot.lg { width: 11px; height: 11px; }
 .t-strength { --c: var(--strength); }
 .t-core { --c: var(--core); }
-.t-run { --c: var(--run); }
-.t-walk { --c: var(--walk); }
+.t-cardio { --c: var(--cardio); }
 .t-mobility { --c: var(--mobility); }
 .t-class { --c: var(--class); }
 
@@ -520,7 +518,10 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
 }
 .input-card .big-input:focus { border-color: var(--text); background: #fff; }
 .input-card .big-input::placeholder { color: #B9B4AA; }
-.pace-card, .incline-card { margin-top: 12px; }
+.pace-card { margin-top: 12px; }
+.cardio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.input-card.missing label { color: var(--danger); }
+.input-card.missing .big-input { border-color: var(--danger); background: #fff; }
 .pace-card .big { font-size: 52px; }
 .pace-card .big small { font-size: 22px; }
 .pace-card .pill { margin-top: 8px; }

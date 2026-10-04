@@ -22,3 +22,21 @@ export async function linkExerciseIds() {
   }
   if (changed.length) await db.putMany('logs', changed);
 }
+
+// Run and Walk used to be workout types of their own. They're now activities
+// under Cardio: { type: 'run' } becomes { type: 'cardio', activity: 'run' }.
+// Every other field (distance, time, incline, feel, notes) is kept as is.
+// Safe to run on every launch.
+export async function migrateCardio() {
+  const toCardio = item => {
+    if (item.type !== 'run' && item.type !== 'walk') return false;
+    item.activity = item.type;
+    item.type = 'cardio';
+    return true;
+  };
+  const [templates, logs] = await Promise.all([db.getAll('templates'), db.getAll('logs')]);
+  const t = templates.filter(toCardio);
+  const l = logs.filter(toCardio);
+  if (t.length) await db.putMany('templates', t);
+  if (l.length) await db.putMany('logs', l);
+}

@@ -1,12 +1,11 @@
 import * as db from '../db.js';
-import { TYPES, isExerciseType, uid, esc, normName, parseNumber, backLink, icon } from '../util.js';
+import { TYPES, isExerciseType, isCardio, uid, esc, normName, parseNumber, backLink, icon } from '../util.js';
+import { ACTIVITIES, ACTIVITY_ORDER, DEFAULT_ACTIVITY, recordsList } from '../cardio.js';
 
-// Type chips follow the design's order.
-const TYPE_CHIPS = ['run', 'walk', 'strength', 'core', 'mobility', 'class'];
+const TYPE_CHIPS = ['cardio', 'strength', 'core', 'mobility', 'class'];
 
+// What a log records, for types without their own editor. Cardio's comes from cardio.js.
 const RECORDS = {
-  run: ['Distance (km)', 'Time', 'Pace (calculated)', 'How it felt', 'Notes'],
-  walk: ['Distance (km)', 'Time', 'Incline', 'Pace (calculated)', 'How it felt', 'Notes'],
   class: ['Duration (min)', 'How it felt', 'Notes'],
   mobility: ['Duration (min)', 'Movements', 'How it felt', 'Notes'],
 };
@@ -104,6 +103,7 @@ export default async function edit(ctx) {
       };
   draft.exercises ||= [];
   draft.movements ||= [];
+  if (isCardio(draft.type)) draft.activity ||= DEFAULT_ACTIVITY;
 
   const render = () => {
     const t = draft.type;
@@ -120,8 +120,13 @@ export default async function edit(ctx) {
           <div class="section-label">Usual duration (min)</div>
           <input class="field" id="dur" inputmode="numeric" pattern="[0-9]*" value="${draft.durationMin ?? ''}" placeholder="e.g. ${t === 'class' ? 45 : 20}">` : ''}
         ${t === 'mobility' ? listEditor(draft.movements, { label: 'Movements', placeholder: 'Add a movement, e.g. Cat-Cow' }) : ''}
+        ${isCardio(t) ? `
+          <div class="section-label">Activity</div>
+          <div class="type-chips">
+            ${ACTIVITY_ORDER.map(a => `<button class="chip ${a === draft.activity ? 'on' : ''}" data-activity="${a}"><span class="dot" style="--c:${ACTIVITIES[a].color}"></span>${esc(ACTIVITIES[a].label)}</button>`).join('')}
+          </div>` : ''}
         <div class="section-label">Each log records</div>
-        <div class="card card-pad"><ul class="records-list t-${t}">${RECORDS[t].map(r => `<li>${r}</li>`).join('')}</ul></div>`;
+        <div class="card card-pad"><ul class="records-list t-${t}"${isCardio(t) ? ` style="--c:${ACTIVITIES[draft.activity].color}"` : ''}>${(isCardio(t) ? recordsList(draft.activity) : RECORDS[t]).map(r => `<li>${esc(r)}</li>`).join('')}</ul></div>`;
     }
 
     ctx.app.innerHTML = `
@@ -153,6 +158,11 @@ export default async function edit(ctx) {
     $('#title').addEventListener('input', e => { draft.title = e.target.value; $('#title-err').hidden = true; });
     ctx.app.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => {
       draft.type = b.dataset.type;
+      if (isCardio(draft.type)) draft.activity ||= DEFAULT_ACTIVITY;
+      render();
+    }));
+    ctx.app.querySelectorAll('[data-activity]').forEach(b => b.addEventListener('click', () => {
+      draft.activity = b.dataset.activity;
       render();
     }));
     $('#dur')?.addEventListener('input', e => {
@@ -252,6 +262,7 @@ export default async function edit(ctx) {
         $('#title').focus();
         return;
       }
+      if (!isCardio(draft.type)) delete draft.activity;
       await db.put('templates', draft);
       location.replace(backHref);
     });

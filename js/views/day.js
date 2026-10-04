@@ -1,10 +1,11 @@
 import * as db from '../db.js';
 import {
-  TYPES, isExerciseType, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isDistanceType,
-  formatKm, formatDuration, formatIncline, paceOf, fmtW, getUnit, topKg, countedSets, priorLogs,
+  typeLabelHtml, isExerciseType, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isCardio,
+  formatDuration, fmtW, getUnit, topKg, countedSets, priorLogs,
   previousExercise, progressBadge, badgeHtml, isTimed, formatHold, backLink, icon,
 } from '../util.js';
 import { dotsHtml, groupByDate } from './calendar.js';
+import { FIELDS, activityOf, derivedOf } from '../cardio.js';
 
 function strengthBody(log, allLogs) {
   const prior = priorLogs(allLogs, log);
@@ -22,14 +23,27 @@ function strengthBody(log, allLogs) {
     ${exs.length ? `<div class="ex-lines">${lines}</div>` : ''}`;
 }
 
-function distanceBody(log) {
-  const pace = paceOf(log);
-  return `<div class="run-stats">
-    <div><div class="stat-val">${log.distanceKm ? formatKm(log.distanceKm) : '–'}<small>km</small></div><div class="stat-label">Distance</div></div>
-    <div><div class="stat-val">${log.durationSec ? formatDuration(log.durationSec) : '–'}</div><div class="stat-label">Time</div></div>
-    <div><div class="stat-val">${pace ? formatDuration(pace) : '–'}<small>/km</small></div><div class="stat-label">Pace</div></div>
-  </div>
-  ${log.type === 'walk' && log.incline != null ? `<div class="meta feel-tag">Incline ${formatIncline(log.incline)}</div>` : ''}`;
+// Required fields, time and any calculated value as big stats; optional
+// fields and feel underneath.
+function cardioBody(log) {
+  const act = activityOf(log);
+  const stat = (val, unit, label) =>
+    `<div><div class="stat-val">${val ?? '–'}${unit ? `<small>${unit}</small>` : ''}</div><div class="stat-label">${label}</div></div>`;
+  const stats = act.required.map(k => {
+    const f = FIELDS[k];
+    return stat(log[k] != null ? f.format(log[k]) : null, f.unit, f.label);
+  });
+  stats.push(stat(log.durationSec ? formatDuration(log.durationSec) : null, '', 'Time'));
+  const der = derivedOf(log);
+  if (der) {
+    const v = der.calc(log);
+    stats.push(stat(v != null ? der.format(v) : null, der.unit, der.label));
+  }
+  const extras = act.optional.filter(k => log[k] != null).map(k => FIELDS[k].short(log[k]));
+  if (log.feel) extras.push(`felt ${log.feel.toLowerCase()}`);
+  const line = extras.join(' · ');
+  return `<div class="run-stats">${stats.join('')}</div>
+    ${line ? `<div class="meta feel-tag">${esc(line[0].toUpperCase() + line.slice(1))}</div>` : ''}`;
 }
 
 function durationBody(log) {
@@ -61,9 +75,9 @@ export default async function day(ctx) {
   }).join('');
 
   const cards = dayLogs.map(l => {
-    const body = isExerciseType(l.type) ? strengthBody(l, logs) : isDistanceType(l.type) ? distanceBody(l) : durationBody(l);
+    const body = isExerciseType(l.type) ? strengthBody(l, logs) : isCardio(l.type) ? cardioBody(l) : durationBody(l);
     return `<a class="card log-card" href="#/log/${l.id}">
-      <div class="log-card-head"><span class="eyebrow"><span class="dot t-${l.type}"></span>${esc(TYPES[l.type].label)}</span>${icon.chevR}</div>
+      <div class="log-card-head"><span class="eyebrow">${typeLabelHtml(l)}</span>${icon.chevR}</div>
       <div class="log-card-title">${esc(l.title)}</div>
       ${body}
     </a>`;

@@ -1,8 +1,9 @@
 import * as db from '../db.js';
 import {
-  TYPES, TYPE_ORDER, isExerciseType, ui, uid, esc, fromKey, fmt, byOrder, priorLogs, previousExercise, isTimed,
+  TYPES, TYPE_ORDER, isExerciseType, isCardio, ui, uid, esc, fromKey, fmt, byOrder, priorLogs, previousExercise, isTimed,
   templateShortDesc, icon,
 } from '../util.js';
+import { DEFAULT_ACTIVITY, fieldsOf } from '../cardio.js';
 
 const FILTERS = [['all', 'All'], ...TYPE_ORDER.map(t => [t, TYPES[t].short])];
 
@@ -14,6 +15,7 @@ export async function createLog(template, date) {
     date,
     templateId: template.id,
     type: template.type,
+    ...(isCardio(template.type) ? { activity: template.activity || DEFAULT_ACTIVITY } : {}),
     title: template.title,
     notes: '',
     feel: null,
@@ -36,10 +38,9 @@ export async function createLog(template, date) {
       if (timed) ex.mode = 'time';
       return ex;
     });
-  } else if (template.type === 'run' || template.type === 'walk') {
-    log.distanceKm = null;
+  } else if (isCardio(template.type)) {
     log.durationSec = null;
-    if (template.type === 'walk') log.incline = null;
+    fieldsOf(log).forEach(k => { log[k] = null; });
   } else {
     log.durationMin = template.durationMin ?? prior[0]?.durationMin ?? null;
     if (template.type === 'mobility') log.movements = [...(template.movements || [])];

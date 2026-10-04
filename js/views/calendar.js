@@ -50,7 +50,7 @@ export default async function calendar(ctx) {
   const [ws, we] = [toKey(wkStart), toKey(wkEnd)];
   const weekLogs = logs.filter(l => l.date >= ws && l.date <= we);
   const strengthDays = new Set(weekLogs.filter(l => l.type === 'strength').map(l => l.date)).size;
-  const runKm = weekLogs.filter(l => l.type === 'run').reduce((s, l) => s + (l.distanceKm || 0), 0);
+  const runKm = weekLogs.filter(l => l.type === 'cardio' && l.activity === 'run').reduce((s, l) => s + (l.distanceKm || 0), 0);
 
   const todays = byDate.get(tKey) || [];
 

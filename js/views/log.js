@@ -1,9 +1,10 @@
 import * as db from '../db.js';
 import {
-  TYPES, isExerciseType, toast, dismissToast, esc, fromKey, fmt, isDistanceType, debounce, priorLogs, previousExercise,
+  typeLabelHtml, isExerciseType, toast, dismissToast, esc, fromKey, fmt, isCardio, debounce, priorLogs, previousExercise,
   progressBadge, isTimed, holdDigits, parseHold, formatHold, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
-  parseDuration, formatDuration, digitsToTime, paceOf, formatKm, formatIncline, backLink, icon,
+  parseDuration, formatDuration, digitsToTime, formatKm, backLink, icon,
 } from '../util.js';
+import { FIELDS, activityOf, derivedOf, fieldLabel, cardioSummary } from '../cardio.js';
 
 const FEELS = ['Easy', 'Moderate', 'Hard'];
 
@@ -152,80 +153,100 @@ function renderStrength(root, log, prior, save) {
   });
 }
 
-/* ---------- Run / Walk ---------- */
+/* ---------- Cardio ---------- */
 
-function renderDistance(root, log, prior, save) {
-  const prevLog = prior.find(l => paceOf(l));
-  const prevPace = paceOf(prevLog);
-  const isWalk = log.type === 'walk';
-  const prevIncline = prior.find(l => l.incline != null)?.incline;
+// Plain numbers for input boxes (no thousands separators, which wouldn't parse back).
+const inputValue = (key, v) => (v == null ? '' : key === 'distanceKm' ? formatKm(v) : String(Math.round(v * 10) / 10));
+
+function parseField(key, raw) {
+  if (FIELDS[key].input === 'int') {
+    const digits = String(raw).replace(/\D/g, '');
+    return digits ? Number(digits) : null;
+  }
+  return parseNumber(raw);
+}
+
+function fieldCard(key, log, prevLog) {
+  const f = FIELDS[key];
+  const int = f.input === 'int';
+  return `<div class="card input-card" data-card="${key}">
+    <label for="f-${key}">${fieldLabel(key)}</label>
+    <input id="f-${key}" data-field="${key}" class="big-input" inputmode="${int ? 'numeric' : 'decimal'}"${int ? ' pattern="[0-9]*"' : ''} autocomplete="off"
+      value="${inputValue(key, log[key])}" placeholder="${prevLog?.[key] != null ? inputValue(key, prevLog[key]) : '0'}">
+  </div>`;
+}
+
+// Builds the form from the activity's config (cardio.js). Returns a check that
+// lists any required fields still empty.
+function renderCardio(root, log, prior, save) {
+  const act = activityOf(log);
+  const der = derivedOf(log);
+  const prevLog = prior[0];
+  const prevDerived = der ? prior.map(der.calc).find(v => v != null) : null;
 
   root.innerHTML = `
-    <div class="input-pair">
-      <div class="card input-card">
-        <label for="dist">Distance (km)</label>
-        <input id="dist" class="big-input" inputmode="decimal" enterkeyhint="next" autocomplete="off"
-          value="${log.distanceKm != null ? formatKm(log.distanceKm) : ''}" placeholder="${prevLog ? formatKm(prevLog.distanceKm) : '0.0'}">
-      </div>
-      <div class="card input-card">
+    <div class="cardio-grid">
+      ${act.required.map(k => fieldCard(k, log, prevLog)).join('')}
+      <div class="card input-card" data-card="durationSec">
         <label for="time">Time (<span id="time-fmt">mm:ss</span>)</label>
         <input id="time" class="big-input" inputmode="numeric" pattern="[0-9:]*" enterkeyhint="done" autocomplete="off"
-          value="${log.durationSec ? formatDuration(log.durationSec) : ''}" placeholder="${prevLog ? formatDuration(prevLog.durationSec) : '00:00'}">
+          value="${log.durationSec ? formatDuration(log.durationSec) : ''}" placeholder="${prevLog?.durationSec ? formatDuration(prevLog.durationSec) : '00:00'}">
       </div>
     </div>
-    ${isWalk ? `<div class="card input-card incline-card">
-      <label for="incline">Incline</label>
-      <input id="incline" class="big-input" inputmode="decimal" autocomplete="off"
-        value="${log.incline != null ? Math.round(log.incline * 10) / 10 : ''}" placeholder="${prevIncline ?? '0'}">
-    </div>` : ''}
-    <section class="summary-card pace-card">
-      <div class="label">Pace · calculated</div>
-      <div class="big"><span id="pace">–:––</span><small>/km</small></div>
-      <div id="pace-pill"></div>
-    </section>
+    ${der ? `<section class="summary-card pace-card">
+      <div class="label">${der.label} · calculated</div>
+      <div class="big"><span id="derived">–</span><small>${der.unit}</small></div>
+      <div id="derived-pill"></div>
+    </section>` : ''}
+    ${act.optional.length ? `<div class="section-label">Optional</div>
+      <div class="cardio-grid">${act.optional.map(k => fieldCard(k, log, prevLog)).join('')}</div>` : ''}
     <section class="card last-card">
       ${prevLog
         ? `<div class="label">Last time · ${fmt.short(fromKey(prevLog.date))}</div>
-           <div class="val">${formatKm(prevLog.distanceKm)} km · ${formatDuration(prevLog.durationSec)} · ${formatDuration(prevPace)} /km${isWalk && prevLog.incline != null ? ` · ${formatIncline(prevLog.incline)} incline` : ''}</div>`
+           <div class="val">${esc(cardioSummary(prevLog, { withDerived: true }) || '—')}</div>`
         : `<div class="label">Last time</div><div class="val">First time logging this workout</div>`}
     </section>
   `;
 
   const timeIn = root.querySelector('#time');
   const update = () => {
-    const pace = paceOf(log);
-    root.querySelector('#pace').textContent = pace ? formatDuration(pace) : '–:––';
     root.querySelector('#time-fmt').textContent = log.durationSec >= 3600 ? 'h:mm:ss' : 'mm:ss';
-    const pill = root.querySelector('#pace-pill');
-    if (!pace || !prevPace) { pill.innerHTML = ''; return; }
-    const diff = Math.round(prevPace - pace);
-    pill.innerHTML = diff === 0
-      ? '<span class="pill flat">Same pace as last time</span>'
-      : `<span class="pill ${diff > 0 ? '' : 'flat'}">${Math.abs(diff)} s/km ${diff > 0 ? 'faster' : 'slower'} than last time</span>`;
+    if (!der) return;
+    const now = der.calc(log);
+    root.querySelector('#derived').textContent = now != null ? der.format(now) : '–';
+    const pill = root.querySelector('#derived-pill');
+    if (now == null || prevDerived == null) { pill.innerHTML = ''; return; }
+    const gain = der.gain(now, prevDerived);
+    pill.innerHTML = gain === 0
+      ? '<span class="pill flat">Same as last time</span>'
+      : `<span class="pill ${gain > 0 ? '' : 'flat'}">${der.diffText(gain)} than last time</span>`;
   };
   update();
 
-  root.querySelector('#dist').addEventListener('input', e => {
-    const v = parseNumber(e.target.value);
-    log.distanceKm = v || null;
+  root.addEventListener('input', e => {
+    const input = e.target;
+    input.closest('.input-card')?.classList.remove('missing');
+    if (input === timeIn) {
+      // The number pad has no colon, so colons are inserted as digits are typed.
+      timeIn.value = digitsToTime(timeIn.value);
+      log.durationSec = parseDuration(timeIn.value);
+    } else if (input.dataset.field) {
+      log[input.dataset.field] = parseField(input.dataset.field, input.value);
+    } else {
+      return;
+    }
     update();
-    save();
-  });
-  timeIn.addEventListener('input', () => {
-    // The number pad has no colon, so colons are inserted as digits are typed.
-    timeIn.value = digitsToTime(timeIn.value);
-    log.durationSec = parseDuration(timeIn.value);
-    update();
-    save();
-  });
-  root.querySelector('#incline')?.addEventListener('input', e => {
-    // 0 is a real value (flat), so only an empty field clears it.
-    log.incline = parseNumber(e.target.value);
     save();
   });
   timeIn.addEventListener('blur', () => {
     if (log.durationSec) timeIn.value = formatDuration(log.durationSec);
   });
+
+  return () => {
+    const missing = [...act.required.filter(k => !(log[k] > 0)), ...(log.durationSec ? [] : ['durationSec'])];
+    missing.forEach(k => root.querySelector(`[data-card="${k}"]`).classList.add('missing'));
+    return missing.map(k => (k === 'durationSec' ? 'time' : FIELDS[k].label.toLowerCase()));
+  };
 }
 
 /* ---------- Mobility / Class ---------- */
@@ -308,21 +329,22 @@ export default async function logView(ctx) {
       ${backLink(dayHref, fmt.short(fromKey(log.date)))}
       <button class="btn btn-dark" id="done">Done</button>
     </div>
-    <div class="eyebrow"><span class="dot t-${log.type}"></span>${esc(TYPES[log.type].label)}</div>
+    <div class="eyebrow">${typeLabelHtml(log)}</div>
     <h1 class="display log-title">${esc(log.title)}</h1>
     <div id="body"></div>
     ${hasFeel ? `<section class="card feel-card"><h3 class="card-h">How did it feel?</h3>
       <div class="seg" id="feel">${FEELS.map(f => `<button class="${log.feel === f ? 'on' : ''}" data-feel="${f}">${f}</button>`).join('')}</div></section>` : ''}
     <section class="card notes-card">
       <h3><label for="notes">Notes</label></h3>
-      <textarea id="notes" class="field" placeholder="${isDistanceType(log.type) ? 'Route, weather, how your legs felt…' : 'How it went, what to change next time…'}">${esc(log.notes)}</textarea>
+      <textarea id="notes" class="field" placeholder="${isCardio(log.type) ? 'Route, weather, how your legs felt…' : 'How it went, what to change next time…'}">${esc(log.notes)}</textarea>
     </section>
     <button class="btn btn-danger btn-block remove-log" id="remove">Remove from this day</button>
   `;
 
   const body = ctx.app.querySelector('#body');
+  let missingFields = () => [];
   if (isExerciseType(log.type)) renderStrength(body, log, prior, save);
-  else if (isDistanceType(log.type)) renderDistance(body, log, prior, save);
+  else if (isCardio(log.type)) missingFields = renderCardio(body, log, prior, save);
   else renderDuration(body, log, prior, save);
 
   ctx.app.querySelector('#feel')?.addEventListener('click', e => {
@@ -335,6 +357,13 @@ export default async function logView(ctx) {
   ctx.app.querySelector('#notes').addEventListener('input', e => { log.notes = e.target.value; save(); });
 
   ctx.app.querySelector('#done').addEventListener('click', async () => {
+    const missing = missingFields();
+    if (missing.length) {
+      const list = missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing.at(-1)}` : missing[0];
+      toast(`Add ${list} to finish`);
+      ctx.app.querySelector('.input-card.missing input')?.focus();
+      return;
+    }
     await save.flush();
     location.replace(dayHref);
   });

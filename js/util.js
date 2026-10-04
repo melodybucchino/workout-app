@@ -1,17 +1,18 @@
 // Shared helpers: workout types, dates, durations, weights, history lookups.
+import { FIELDS, activityOf, cardioSummary } from './cardio.js';
 
 export const TYPES = {
   strength: { label: 'Strength', short: 'Strength' },
   core: { label: 'Core', short: 'Core' },
-  run: { label: 'Run', short: 'Run' },
-  walk: { label: 'Walk', short: 'Walk' },
+  cardio: { label: 'Cardio', short: 'Cardio' },
   mobility: { label: 'Mobility', short: 'Mobility' },
   class: { label: 'Workout Class', short: 'Class' },
 };
-export const TYPE_ORDER = ['strength', 'core', 'run', 'walk', 'mobility', 'class'];
+export const TYPE_ORDER = ['strength', 'core', 'cardio', 'mobility', 'class'];
 // Types logged as exercises with sets (kg + reps or time).
 export const isExerciseType = t => t === 'strength' || t === 'core';
-export const isDistanceType = t => t === 'run' || t === 'walk';
+// Cardio logs pick an activity (Run, Walk, ...) whose fields come from cardio.js.
+export const isCardio = t => t === 'cardio';
 
 // UI state that should survive moving between screens.
 export const ui = { calMonth: null, addFilter: 'all', libFilter: 'all' };
@@ -115,17 +116,11 @@ export function digitsToTime(raw) {
   return `${d.slice(0, -4)}:${d.slice(-4, -2)}:${d.slice(-2)}`;
 }
 
-export function paceOf(log) {
-  if (!log || !(log.distanceKm > 0) || !(log.durationSec > 0)) return null;
-  return log.durationSec / log.distanceKm;
-}
-
 // 6 -> "6.0", 5.25 -> "5.25"
 export function formatKm(km) {
   if (km == null) return '';
   return (Math.round(km * 100) / 100).toFixed(2).replace(/0$/, '');
 }
-export const formatIncline = v => String(Math.round(v * 10) / 10);
 export const formatKm1 = km => (Math.round((km || 0) * 10) / 10).toFixed(1);
 
 /* ---------- Weights (always stored in kg) ---------- */
@@ -162,11 +157,12 @@ export function parseNumber(str) {
 const orderKey = l => `${l.date}|${String(l.createdAt).padStart(15, '0')}`;
 export const byOrder = (a, b) => (orderKey(a) < orderKey(b) ? -1 : orderKey(a) > orderKey(b) ? 1 : 0);
 
-// Logs of the same saved workout (and type) that come before `log`, newest first.
+// Logs of the same saved workout (and type/activity) that come before `log`, newest first.
 export function priorLogs(logs, log) {
   const key = orderKey(log);
   return logs
-    .filter(l => l.id !== log.id && l.templateId === log.templateId && l.type === log.type && orderKey(l) < key)
+    .filter(l => l.id !== log.id && l.templateId === log.templateId && l.type === log.type
+      && (l.activity ?? null) === (log.activity ?? null) && orderKey(l) < key)
     .sort(byOrder)
     .reverse();
 }
@@ -264,12 +260,8 @@ export function logSubtitle(log) {
     const n = (log.exercises || []).length;
     return `${t} · ${n} exercise${n === 1 ? '' : 's'}`;
   }
-  if (isDistanceType(log.type)) {
-    const bits = [t];
-    if (log.distanceKm) bits.push(`${formatKm(log.distanceKm)} km`);
-    if (log.durationSec) bits.push(formatDuration(log.durationSec));
-    if (log.type === 'walk' && log.incline != null) bits.push(`${formatIncline(log.incline)} incline`);
-    return bits.join(' · ');
+  if (isCardio(log.type)) {
+    return [activityOf(log).label, cardioSummary(log)].filter(Boolean).join(' · ');
   }
   return log.durationMin ? `${t} · ${log.durationMin} min` : t;
 }
@@ -291,8 +283,12 @@ export function templateSummary(t) {
       const names = (t.exercises || []).map(e => e.name);
       return names.length ? `${label} · ${exerciseList(names)}` : `${label} · No exercises yet`;
     }
-    case 'run': return `${label} · Distance · time · pace`;
-    case 'walk': return `${label} · Distance · time · incline`;
+    case 'cardio': {
+      const act = activityOf(t);
+      const bits = [...act.required.map(k => FIELDS[k].label), 'time'];
+      if (act.optional.length) bits.push(act.optional.map(k => FIELDS[k].label.toLowerCase()).join(', '));
+      return `${label} · ${act.label} · ${bits.join(' · ')}`;
+    }
     case 'mobility': {
       const n = (t.movements || []).length;
       return `${label} · Duration${n ? ` · ${n} movement${n === 1 ? '' : 's'}` : ''}`;
@@ -306,8 +302,10 @@ export function templateShortDesc(t) {
     const n = (t.exercises || []).length;
     return `${n} exercise${n === 1 ? '' : 's'}`;
   }
-  if (t.type === 'walk') return 'Distance, time + incline';
-  if (t.type === 'run') return 'Distance + time';
+  if (isCardio(t.type)) {
+    const act = activityOf(t);
+    return `${act.label} · ${act.required.map(k => FIELDS[k].label.toLowerCase()).join(', ')} + time`;
+  }
   return t.durationMin ? `${t.durationMin} min` : 'Duration';
 }
 
@@ -327,6 +325,15 @@ export const icon = {
 
 export const backLink = (href, label) =>
   `<a class="back-link" href="${href}">${icon.back}<span>${esc(label)}</span></a>`;
+
+// Dot + "STRENGTH", or "CARDIO · RUN" in the activity's shade.
+export function typeLabelHtml(log) {
+  if (isCardio(log.type)) {
+    const act = activityOf(log);
+    return `<span class="dot" style="--c:${act.color}"></span>${esc(TYPES.cardio.label)} · ${esc(act.label)}`;
+  }
+  return `<span class="dot t-${log.type}"></span>${esc(TYPES[log.type].label)}`;
+}
 
 export function badgeHtml(b, arrows = true) {
   if (!b) return '';
