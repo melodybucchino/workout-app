@@ -44,7 +44,7 @@ export const DERIVED = {
 // Every cardio log also records duration, how it felt and notes.
 export const ACTIVITIES = {
   run: { label: 'Run', color: '#2F6FEB', required: ['distanceKm'], optional: ['elevationM'], derived: 'pace' },
-  walk: { label: 'Walk', color: '#85B7EB', required: ['distanceKm'], optional: ['steps', 'incline'], derived: 'pace' },
+  walk: { label: 'Walk', color: '#85B7EB', required: ['distanceKm'], optional: ['steps', 'incline'] },
   bike: { label: 'Bike', color: '#0C447C', required: ['distanceKm'], optional: ['resistance'], derived: 'speed' },
   stairmaster: { label: 'StairMaster', color: '#185FA5', required: ['floors'], optional: ['level', 'steps'] },
 };
