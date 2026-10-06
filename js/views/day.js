@@ -2,7 +2,7 @@ import * as db from '../db.js';
 import {
   typeLabelHtml, isExerciseType, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isCardio,
   formatDuration, fmtW, getUnit, topKg, countedSets, priorLogs,
-  previousExercise, progressBadge, badgeHtml, isTimed, formatHold, backLink, icon,
+  previousExercise, progressBadge, badgeHtml, isTimed, isPerSide, formatHold, backLink, icon,
 } from '../util.js';
 import { dotsHtml, groupByDate } from './calendar.js';
 import { FIELDS, activityOf, derivedOf } from '../cardio.js';
@@ -12,7 +12,9 @@ function strengthBody(log, allLogs) {
   const exs = log.exercises || [];
   const sets = exs.reduce((n, e) => n + countedSets(e).length, 0);
   const lines = exs.map(ex => {
-    const amounts = countedSets(ex).map(s => (isTimed(ex) ? (s.sec ? formatHold(s.sec) : '–') : s.reps ?? '–')).join(', ');
+    const done = countedSets(ex);
+    const amounts = done.map(s => (isTimed(ex) ? (s.sec ? formatHold(s.sec) : '–') : s.reps ?? '–')).join(', ')
+      + (done.length && isPerSide(ex) ? ' / side' : '');
     const top = topKg(ex);
     const val = [amounts, top != null ? `${fmtW(top)} ${getUnit()}` : ''].filter(Boolean).join(' · ') || '—';
     const prev = previousExercise(prior, ex);

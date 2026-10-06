@@ -1,7 +1,7 @@
 import * as db from '../db.js';
 import {
   typeLabelHtml, isExerciseType, toast, dismissToast, esc, fromKey, fmt, isCardio, debounce, priorLogs, previousExercise,
-  progressBadge, isTimed, holdDigits, parseHold, formatHold, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
+  progressBadge, isTimed, isPerSide, holdDigits, parseHold, formatHold, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
   parseDuration, formatDuration, digitsToTime, formatKm, backLink, icon,
 } from '../util.js';
 import { FIELDS, activityOf, derivedOf, fieldLabel, cardioSummary } from '../cardio.js';
@@ -38,9 +38,9 @@ function exerciseCard(ex, i, prior) {
       <td class="col-rm"><button class="rm-set" data-remove-set="${j}" aria-label="Remove set ${j + 1}">${icon.x}</button></td>
     </tr>`).join('');
   return `<section class="card ex-card" data-ex="${i}">
-    <div class="ex-card-head"><h3>${esc(ex.name)}</h3><span class="ex-badge">${badgeHtml(progressBadge(ex, prev, true))}</span></div>
+    <div class="ex-card-head"><h3>${esc(ex.name)}${isPerSide(ex) ? '<span class="side-tag">per side</span>' : ''}</h3><span class="ex-badge">${badgeHtml(progressBadge(ex, prev, true))}</span></div>
     <table class="set-table">
-      <thead><tr><th class="col-set">Set</th><th>Last time</th><th class="col-kg c">${getUnit()}</th><th class="col-reps c">${timed ? 'Time' : 'Reps'}</th><th class="col-rm"></th></tr></thead>
+      <thead><tr><th class="col-set">Set</th><th>Last time</th><th class="col-kg c">${getUnit()}</th><th class="col-reps c">${timed ? 'Time' : 'Reps'}${isPerSide(ex) ? ' / side' : ''}</th><th class="col-rm"></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <button class="btn-dashed" data-add-set>${icon.plus}Add set</button>

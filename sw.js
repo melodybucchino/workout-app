@@ -1,7 +1,7 @@
 // Offline support: every app file is cached on install. Requests are served
 // from the cache straight away and refreshed in the background, so an update
 // shows up on the next launch. Bump VERSION when files are added or removed.
-const VERSION = 'v11';
+const VERSION = 'v12';
 const CACHE = `workouts-${VERSION}`;
 const FILES = [
   './',

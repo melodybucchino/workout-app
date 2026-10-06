@@ -36,6 +36,7 @@ export async function createLog(template, date) {
         : [];
       const ex = { exId: e.id, name: e.name, sets: sets.length ? sets : [blank(), blank(), blank()] };
       if (timed) ex.mode = 'time';
+      if (e.perSide) ex.perSide = true;
       return ex;
     });
   } else if (isCardio(template.type)) {

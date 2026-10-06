@@ -600,7 +600,24 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
   position: relative;
 }
 .mode-btn::after { content: ""; position: absolute; inset: -6px -2px; }
-.mode-btn.timed { background: var(--dark); border-color: var(--dark); color: #fff; }
+.mode-btn.on { background: var(--dark); border-color: var(--dark); color: #fff; }
+.ex-row .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 4px 0 12px; }
+.ex-row .name-btn { min-height: 40px; align-self: stretch; }
+.ex-row .rename-input { flex: none; margin: 0 6px 6px 0; }
+.row-opts { display: flex; gap: 8px; }
+.side-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--neutral-bg);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+.set-table th.col-reps { white-space: nowrap; }
 .list-hint { color: var(--text-2); font-size: 14px; margin: 8px 2px 0; line-height: 1.4; }
 .add-line { display: flex; gap: 10px; margin-top: 12px; }
 .add-line .field { flex: 1; min-width: 0; border-style: dashed; border-width: 1.5px; border-color: #CFCAC0; background: transparent; }

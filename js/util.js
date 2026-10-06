@@ -171,6 +171,8 @@ export const normName = s => String(s || '').trim().toLowerCase();
 
 // Exercises are measured in reps unless set to 'time' (holds like planks).
 export const isTimed = ex => ex?.mode === 'time';
+// Per-side exercises (single arm/leg) record reps and weight for one side.
+export const isPerSide = ex => !!ex?.perSide;
 
 const setHasData = s => s.kg != null || s.reps != null || s.sec != null;
 const hasData = ex => ex && ex.sets.some(setHasData);
@@ -218,7 +220,12 @@ export function topKg(ex) {
 export function volumeKg(exercises) {
   let v = 0;
   // Timed holds are left out: weight × seconds isn't a meaningful total.
-  for (const ex of exercises || []) if (!isTimed(ex)) for (const s of ex.sets) if (s.kg && s.reps) v += s.kg * s.reps;
+  // Per-side sets were done on both sides, so they count twice.
+  for (const ex of exercises || []) {
+    if (isTimed(ex)) continue;
+    const sides = isPerSide(ex) ? 2 : 1;
+    for (const s of ex.sets) if (s.kg && s.reps) v += s.kg * s.reps * sides;
+  }
   return v;
 }
 

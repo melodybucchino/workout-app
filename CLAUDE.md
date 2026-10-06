@@ -37,7 +37,7 @@ Personal workout tracker: a mobile-first PWA for one person's iPhone. Plain HTML
   - `previousExercise` matches an exercise by `exId` (a link to the template exercise's `id`) or by name, and only within the same measure (reps vs time).
   - Renames keep their history through `exId`. `createLog` must pass `{ exId: e.id, ... }`, because template exercises store the link as `id`.
 - **Workout types** (`TYPES` in `util.js`):
-  - `strength` and `core` are "exercise types" (`isExerciseType`). Each exercise has sets with `kg` plus `reps`, or plus `sec` when `mode: 'time'`.
+  - `strength` and `core` are "exercise types" (`isExerciseType`). Each exercise has sets with `kg` plus `reps`, or plus `sec` when `mode: 'time'`. `perSide: true` means reps and weight are for one side; `volumeKg` counts those sets twice.
   - `cardio` logs carry an `activity`. Each activity's fields, colour and calculated value (pace/speed) are config in `js/cardio.js`; the log form, day card, summaries and Edit screen are all generated from it. Add a cardio activity by adding config there, not new logic.
   - `mobility` and `class` record a duration in minutes.
 - **Migrations:** data migrations live in `js/migrate.js`. They must be idempotent, and they run on every launch (each wrapped in `try`/`catch` so they can't block startup) and again after a backup import in `views/settings.js`. Older backups and devices still hold old shapes, such as `type: 'run'` / `'walk'` and exercises without `exId`, so a new shape change needs a migration added here.

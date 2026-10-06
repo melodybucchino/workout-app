@@ -52,25 +52,34 @@ function enableReorder(list, onMove) {
   });
 }
 
-// `modes` (strength and core only) adds a Reps/Time toggle to each row.
-function listEditor(items, { label, placeholder, modes }) {
+// `exercises` (strength and core only) adds a second line of toggles to each
+// row: Reps/Time and Per side.
+function listEditor(items, { label, placeholder, exercises }) {
   const rows = items.map((name, i) => {
-    const timed = modes?.[i] === 'time';
-    const toggle = modes
-      ? `<button class="mode-btn ${timed ? 'timed' : ''}" data-mode="${i}" aria-label="${esc(name)} is measured by ${timed ? 'time' : 'reps'}. Tap to switch.">${timed ? 'Time' : 'Reps'}</button>`
-      : '';
+    const nameBtn = `<button class="name name-btn" data-rename="${i}" aria-label="${esc(name)}. Tap to rename.">${esc(name)}</button>`;
+    let main = nameBtn;
+    if (exercises) {
+      const timed = exercises[i].mode === 'time';
+      const side = !!exercises[i].perSide;
+      main = `<div class="row-main">${nameBtn}<div class="row-opts">
+        <button class="mode-btn ${timed ? 'on' : ''}" data-mode="${i}" aria-label="${esc(name)} is measured by ${timed ? 'time' : 'reps'}. Tap to switch.">${timed ? 'Time' : 'Reps'}</button>
+        <button class="mode-btn ${side ? 'on' : ''}" data-side="${i}" aria-pressed="${side}" aria-label="Per side">Per side</button>
+      </div></div>`;
+    }
     return `
-    <div class="edit-row">
+    <div class="edit-row${exercises ? ' ex-row' : ''}">
       <span class="drag-handle" aria-hidden="true">${icon.grip}</span>
-      <button class="name name-btn" data-rename="${i}" aria-label="${esc(name)}. Tap to rename.">${esc(name)}</button>
-      ${toggle}
+      ${main}
       <button class="x-btn" data-rm="${i}" aria-label="Remove ${esc(name)}">${icon.x}</button>
     </div>`;
   }).join('');
+  const hint = exercises
+    ? 'Tap a name to rename it. Tap <b>Reps</b> to switch to <b>Time</b> for holds like planks. Turn on <b>Per side</b> for single-arm or single-leg moves (reps and weight are per side).'
+    : 'Tap a name to rename it.';
   return `
     <div class="section-label">${label} · ${items.length}</div>
     ${rows ? `<div class="card edit-list" id="list">${rows}</div>` : ''}
-    ${rows ? `<p class="list-hint">Tap a name to rename it.${modes ? ' Tap <b>Reps</b> to switch an exercise to <b>Time</b> for holds like planks (logged as m:ss).' : ''}</p>` : ''}
+    ${rows ? `<p class="list-hint">${hint}</p>` : ''}
     <div class="add-line">
       <input class="field" id="item-in" placeholder="${esc(placeholder)}" enterkeyhint="done" autocomplete="off" autocapitalize="words">
       <button class="btn btn-accent" id="item-add">Add</button>
@@ -112,7 +121,7 @@ export default async function edit(ctx) {
       section = listEditor(draft.exercises.map(e => e.name), {
         label: 'Exercises',
         placeholder: t === 'core' ? 'Add an exercise, e.g. Dead Bug' : 'Add an exercise, e.g. Goblet Squat',
-        modes: draft.exercises.map(e => e.mode),
+        exercises: draft.exercises,
       });
     } else {
       section = `
@@ -243,6 +252,12 @@ export default async function edit(ctx) {
       }));
       ctx.app.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
         (isStrength ? draft.exercises : draft.movements).splice(Number(b.dataset.rm), 1);
+        render();
+      }));
+      ctx.app.querySelectorAll('[data-side]').forEach(b => b.addEventListener('click', () => {
+        const ex = draft.exercises[Number(b.dataset.side)];
+        if (ex.perSide) delete ex.perSide;
+        else ex.perSide = true;
         render();
       }));
       ctx.app.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
