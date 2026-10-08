@@ -2,7 +2,7 @@ import * as db from '../db.js';
 import {
   typeLabelHtml, isExerciseType, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isCardio,
   formatDuration, fmtW, getUnit, topKg, countedSets, priorLogs,
-  previousExercise, progressBadge, badgeHtml, isTimed, isPerSide, formatHold, backLink, icon,
+  fmtCount, previousExercise, progressBadge, badgeHtml, isTimed, isPerSide, formatHold, backLink, icon,
 } from '../util.js';
 import { dotsHtml, groupByDate } from './calendar.js';
 import { FIELDS, activityOf, derivedOf } from '../cardio.js';
@@ -57,9 +57,51 @@ function durationBody(log) {
   </div>`;
 }
 
+// Steps live in their own store, one row per date, separate from workouts.
+function stepsCard(steps, editing) {
+  const main = editing
+    ? `<label class="eyebrow" for="steps-in">Steps</label>
+       <input id="steps-in" class="steps-input" inputmode="numeric" pattern="[0-9]*" maxlength="7" enterkeyhint="done"
+         autocomplete="off" value="${steps ?? ''}" placeholder="0">`
+    : `<div class="eyebrow">Steps</div>
+       ${steps ? `<div class="steps-val">${fmtCount(steps)}</div>` : '<div class="steps-val none">Not logged</div>'}`;
+  const btn = editing
+    ? '<button class="btn btn-dark" id="steps-save">Save</button>'
+    : `<button class="btn btn-soft" id="steps-edit">${steps ? 'Edit' : 'Add steps'}</button>`;
+  return `<section class="card steps-card" id="steps">
+    <span class="steps-icon">${icon.steps}</span>
+    <div class="steps-main">${main}</div>
+    ${btn}
+  </section>`;
+}
+
+function wireSteps(root, key, initial) {
+  let steps = initial;
+  const show = editing => {
+    root.querySelector('#steps').outerHTML = stepsCard(steps, editing);
+    if (!editing) {
+      root.querySelector('#steps-edit').addEventListener('click', () => show(true));
+      return;
+    }
+    const input = root.querySelector('#steps-in');
+    input.focus();
+    input.select();
+    input.addEventListener('input', () => { input.value = input.value.replace(/\D/g, ''); });
+    const saveSteps = async () => {
+      const n = Number(input.value.replace(/\D/g, '')) || null;
+      await db.setSteps(key, n);
+      steps = n;
+      show(false);
+    };
+    root.querySelector('#steps-save').addEventListener('click', saveSteps);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveSteps(); } });
+  };
+  show(false);
+}
+
 export default async function day(ctx) {
   const [key] = ctx.params;
-  const logs = await db.getAll('logs');
+  const [logs, stepsRow] = await Promise.all([db.getAll('logs'), db.get('steps', key)]);
   if (!ctx.alive()) return;
 
   const date = fromKey(key);
@@ -91,10 +133,13 @@ export default async function day(ctx) {
     <h1 class="display day-title">${fmt.weekday(date)}</h1>
     <p class="page-sub">${fmt.full(date)}</p>
     <nav class="week-strip" aria-label="Week">${strip}</nav>
+    ${stepsCard(stepsRow?.steps ?? null, false)}
     <div class="section-label eyebrow" style="margin-top:22px">${dayLogs.length} workout${dayLogs.length === 1 ? '' : 's'}</div>
     ${cards || `<div class="empty">Nothing logged on this day.</div>`}
     <div class="fixed-cta"><a class="btn btn-accent" href="#/day/${key}/add">${icon.plus}Add workout</a></div>
   `;
+
+  wireSteps(ctx.app, key, stepsRow?.steps ?? null);
 
   // The calendar should open on this day's month when going back.
   ctx.app.querySelector('.back-link').addEventListener('click', () => {

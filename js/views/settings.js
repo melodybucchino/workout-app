@@ -25,7 +25,7 @@ async function saveFile(json, filename) {
 }
 
 export default async function settings(ctx) {
-  const [templates, logs] = await Promise.all([db.getAll('templates'), db.getAll('logs')]);
+  const [templates, logs, steps] = await Promise.all([db.getAll('templates'), db.getAll('logs'), db.getAll('steps')]);
   if (!ctx.alive()) return;
   const unit = getUnit();
 
@@ -43,7 +43,7 @@ export default async function settings(ctx) {
 
     <section class="card settings-card">
       <h3 class="card-h">Backup</h3>
-      <p>Everything is saved only on this device: ${templates.length} saved workout${templates.length === 1 ? '' : 's'} and ${logs.length} log${logs.length === 1 ? '' : 's'}. Export a backup now and then. Importing replaces everything here with the backup.</p>
+      <p>Everything is saved only on this device: ${templates.length} saved workout${templates.length === 1 ? '' : 's'}, ${logs.length} log${logs.length === 1 ? '' : 's'} and ${steps.length} day${steps.length === 1 ? '' : 's'} of steps. Export a backup now and then. Importing replaces everything here with the backup.</p>
       <div class="settings-actions">
         <button class="btn btn-dark" id="export">Export JSON</button>
         <button class="btn btn-outline" id="import">Import JSON</button>
@@ -87,7 +87,7 @@ export default async function settings(ctx) {
     try {
       const data = JSON.parse(await file.text());
       if (data?.app !== 'workout-tracker') throw new Error("This file isn't a workout backup.");
-      const ok = confirm(`Replace everything on this device with this backup (${data.templates?.length ?? 0} workouts, ${data.logs?.length ?? 0} logs)?`);
+      const ok = confirm(`Replace everything on this device with this backup (${data.templates?.length ?? 0} workouts, ${data.logs?.length ?? 0} logs, ${data.steps?.length ?? 0} days of steps)?`);
       if (!ok) return;
       await db.importAll(data);
       await migrateCardio();

@@ -2,8 +2,9 @@
 // workouts), so views load whole stores and filter in memory.
 
 const DB_NAME = 'workout-tracker';
-const DB_VERSION = 1;
-export const STORES = ['templates', 'logs', 'settings'];
+// v2 added `steps` (daily step counts, keyed by date).
+const DB_VERSION = 2;
+export const STORES = ['templates', 'logs', 'settings', 'steps'];
 
 let dbPromise;
 
@@ -20,8 +21,14 @@ function openDb() {
           logs.createIndex('templateId', 'templateId');
         }
         if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'key' });
+        if (!db.objectStoreNames.contains('steps')) db.createObjectStore('steps', { keyPath: 'date' });
       };
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        // If a newer version of the app opens the database (e.g. another tab
+        // after an update), let it upgrade instead of being blocked by us.
+        req.result.onversionchange = () => req.result.close();
+        resolve(req.result);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -82,7 +89,7 @@ export function setSetting(key, value) {
 }
 
 export async function exportAll() {
-  const [templates, logs, settings] = await Promise.all(STORES.map(getAll));
+  const [templates, logs, settings, steps] = await Promise.all(STORES.map(getAll));
   return {
     app: 'workout-tracker',
     version: 1,
@@ -90,7 +97,13 @@ export async function exportAll() {
     templates,
     logs,
     settings,
+    steps,
   };
+}
+
+// Steps for one day; an empty or zero count clears that day.
+export function setSteps(date, steps) {
+  return steps > 0 ? put('steps', { date, steps }) : del('steps', date);
 }
 
 // Replaces everything on the device with the backup's contents, in one transaction.
@@ -104,6 +117,8 @@ export async function importAll(data) {
   data.templates.forEach(t => tx.objectStore('templates').put(t));
   data.logs.forEach(l => tx.objectStore('logs').put(l));
   (data.settings || []).forEach(s => tx.objectStore('settings').put(s));
+  // Backups from before step tracking have no `steps`.
+  (data.steps || []).filter(s => s && s.date && s.steps > 0).forEach(s => tx.objectStore('steps').put(s));
   // A restored backup should never be re-seeded with sample templates.
   tx.objectStore('settings').put({ key: 'seeded', value: true });
   return txDone(tx);

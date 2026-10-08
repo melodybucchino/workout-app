@@ -1,7 +1,7 @@
 import * as db from '../db.js';
 import {
   TYPES, TYPE_ORDER, ui, esc, toKey, todayKey, addDays, mondayIndex, mondayOf, fmt,
-  formatKm1, logSubtitle, byOrder, icon,
+  formatKm1, fmtCount, logSubtitle, byOrder, badgeHtml, icon,
 } from '../util.js';
 
 export function dotsHtml(logs) {
@@ -17,8 +17,22 @@ export function groupByDate(logs) {
   return map;
 }
 
+// Average daily steps over a date range, counting only days with steps logged.
+function stepsAverage(steps, from, to) {
+  const days = steps.filter(s => s.date >= from && s.date <= to);
+  const total = days.reduce((sum, s) => sum + s.steps, 0);
+  return { days: days.length, avg: days.length ? Math.round(total / days.length) : null };
+}
+
+function stepsVsLastWeek(thisWeek, lastWeek) {
+  if (thisWeek.avg == null || lastWeek.avg == null) return '';
+  const diff = thisWeek.avg - lastWeek.avg;
+  if (Math.abs(diff) < 50) return badgeHtml({ cls: '', text: 'Same as last week', dir: 0 });
+  return badgeHtml({ cls: diff > 0 ? 'up' : 'down', text: `${fmtCount(Math.abs(diff))} vs last week`, dir: Math.sign(diff) });
+}
+
 export default async function calendar(ctx) {
-  const logs = await db.getAll('logs');
+  const [logs, steps] = await Promise.all([db.getAll('logs'), db.getAll('steps')]);
   if (!ctx.alive()) return;
 
   const today = new Date();
@@ -51,6 +65,8 @@ export default async function calendar(ctx) {
   const weekLogs = logs.filter(l => l.date >= ws && l.date <= we);
   const strengthDays = new Set(weekLogs.filter(l => l.type === 'strength').map(l => l.date)).size;
   const runKm = weekLogs.filter(l => l.type === 'cardio' && l.activity === 'run').reduce((s, l) => s + (l.distanceKm || 0), 0);
+  const stepsThisWeek = stepsAverage(steps, ws, we);
+  const stepsLastWeek = stepsAverage(steps, toKey(addDays(wkStart, -7)), toKey(addDays(wkStart, -1)));
 
   const todays = byDate.get(tKey) || [];
 
@@ -78,6 +94,11 @@ export default async function calendar(ctx) {
         <div><div class="stat-val">${weekLogs.length}</div><div class="stat-label">workout${weekLogs.length === 1 ? '' : 's'}</div></div>
         <div><div class="stat-val">${strengthDays}</div><div class="stat-label">strength day${strengthDays === 1 ? '' : 's'}</div></div>
         <div><div class="stat-val">${formatKm1(runKm)}<small>km</small></div><div class="stat-label">run</div></div>
+      </div>
+      <div class="week-steps">
+        <div class="stat-val">${stepsThisWeek.avg != null ? fmtCount(stepsThisWeek.avg) : '–'}</div>
+        ${stepsVsLastWeek(stepsThisWeek, stepsLastWeek)}
+        <div class="stat-label">avg steps / day · ${stepsThisWeek.days} of 7 days</div>
       </div>
     </section>
 

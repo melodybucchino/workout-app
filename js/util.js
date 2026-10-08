@@ -142,6 +142,8 @@ const trim1 = n => (Math.round(n * 10) / 10).toString();
 // Weight number for display, without unit: 80, 12.5
 export const fmtW = kg => (kg == null ? '' : trim1(kgToDisplay(kg)));
 export const fmtWU = kg => `${fmtW(kg)} ${unit}`;
+// 9066 -> "9,066"
+export const fmtCount = n => Math.round(n).toLocaleString('en-GB');
 export function fmtVolume(kg) {
   return Math.round(kgToDisplay(kg) || 0).toLocaleString('en-GB');
 }
@@ -327,6 +329,7 @@ export const icon = {
   x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
   down: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
+  steps: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 3C6.8 3 5.6 5 5.6 7.6c0 2.3 1 3.9 1.2 6h3.6c.2-2.1 1.2-3.7 1.2-6C11.6 5 10.2 3 8.5 3z"/><path d="M6.9 16.3h3.4v.9a1.7 1.7 0 0 1-3.4 0z"/><path d="M15.5 6.5c1.7 0 2.9 2 2.9 4.6 0 2.3-1 3.9-1.2 6h-3.6c-.2-2.1-1.2-3.7-1.2-6 0-2.6 1.4-4.6 3.1-4.6z"/><path d="M13.7 19.8h3.4v.9a1.7 1.7 0 0 1-3.4 0z"/></svg>',
   grip: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="5" cy="3" r="1.4"/><circle cx="11" cy="3" r="1.4"/><circle cx="5" cy="8" r="1.4"/><circle cx="11" cy="8" r="1.4"/><circle cx="5" cy="13" r="1.4"/><circle cx="11" cy="13" r="1.4"/></svg>',
 };
 

@@ -30,7 +30,7 @@ Personal workout tracker: a mobile-first PWA for one person's iPhone. Plain HTML
   - `rerender()`
 
   Views write `innerHTML` and attach listeners. Small module-level UI state (calendar month, filter chips) lives in `ui` in `util.js`.
-- **Storage:** `js/db.js` wraps three IndexedDB stores: `templates` (saved workouts), `logs` (one per workout done on a date) and `settings` (key/value). Views load whole stores with `getAll` and filter in memory.
+- **Storage:** `js/db.js` wraps four IndexedDB stores: `templates` (saved workouts), `logs` (one per workout done on a date), `settings` (key/value) and `steps` (daily step counts keyed by date, separate from workouts and not shown as calendar dots). Views load whole stores with `getAll` and filter in memory. Adding a store means bumping `DB_VERSION` and creating it in `onupgradeneeded`; every store in `STORES` is included in export/import automatically, but `importAll` needs a line to put the new store's rows.
 - **Logs are snapshots.** Adding a workout to a day (`createLog` in `views/add.js`) copies the template's title, exercises and activity into the log. Editing or deleting a template must never change existing logs. This is a hard user requirement.
 - **"Last time" and pre-fill:**
   - `priorLogs` (in `util.js`) finds earlier logs with the same `templateId`, `type` and `activity`.

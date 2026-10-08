@@ -43,6 +43,8 @@
   --field: #F3F1EC;
   --up-text: #1D6B34;
   --up-bg: #E2F2DC;
+  --down-text: #8A3B12;
+  --down-bg: #FBE6D9;
   --neutral-bg: #EFECE6;
   --danger: #B5401E;
   --danger-border: #EBC2B4;
@@ -249,6 +251,7 @@ body.has-tabbar .tabbar { display: flex; }
   color: var(--text-2);
 }
 .badge.up { background: var(--up-bg); color: var(--up-text); }
+.badge.down { background: var(--down-bg); color: var(--down-text); }
 .badge svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 
 .chips {
@@ -361,6 +364,49 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
 .stat-val { font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -0.03em; line-height: 1.1; }
 .stat-val small { font-family: var(--font-body); font-size: 15px; font-weight: 700; letter-spacing: 0; margin-left: 2px; }
 .stat-label { color: var(--text-2); font-size: 14px; margin-top: 4px; }
+
+/* Average on the left with the badge beside it; the label runs underneath. */
+.week-steps {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.week-steps .stat-label { grid-column: 1 / -1; margin-top: 2px; }
+
+/* Steps card (day view) */
+.steps-card { display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 16px; margin-top: 16px; }
+.steps-icon {
+  width: 46px; height: 46px; flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.steps-icon svg { width: 24px; height: 24px; fill: none; stroke: var(--text); stroke-width: 1.7; stroke-linejoin: round; }
+.steps-main { flex: 1; min-width: 0; }
+.steps-main .eyebrow { font-size: 12px; }
+.steps-val { font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -0.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.steps-val.none { font-family: var(--font-body); font-size: 16px; font-weight: 500; letter-spacing: 0; color: var(--text-2); margin-top: 2px; }
+.steps-input {
+  width: 100%;
+  height: 44px;
+  margin-top: 4px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--text);
+  background: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  font-variant-numeric: tabular-nums;
+}
+.btn-soft { background: var(--neutral-bg); border: 1px solid var(--border); color: var(--text); padding: 0 18px; }
 
 .today-head {
   display: flex; align-items: center; justify-content: space-between;
