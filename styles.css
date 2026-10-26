@@ -357,9 +357,24 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 
 .week-card { padding: 18px 16px 16px; }
-.week-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.week-head strong { font-size: 16px; }
-.week-head span { color: var(--text-2); font-size: 14px; }
+.week-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: -4px; }
+.week-title { min-width: 0; }
+.week-title strong { display: block; font-size: 16px; }
+.week-title span { display: block; color: var(--text-2); font-size: 14px; margin-top: 2px; }
+.icon-btn:disabled { opacity: 0.35; }
+/* Small text link, padded out to a 44px tap target. */
+.week-back {
+  min-height: 44px;
+  margin: 2px 0 -10px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: 0;
+}
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .stat-val { font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -0.03em; line-height: 1.1; }
 .stat-val small { font-family: var(--font-body); font-size: 15px; font-weight: 700; letter-spacing: 0; margin-left: 2px; }

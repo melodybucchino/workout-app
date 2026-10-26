@@ -15,7 +15,7 @@ export const isExerciseType = t => t === 'strength' || t === 'core';
 export const isCardio = t => t === 'cardio';
 
 // UI state that should survive moving between screens.
-export const ui = { calMonth: null, addFilter: 'all', libFilter: 'all' };
+export const ui = { calMonth: null, calWeek: null, addFilter: 'all', libFilter: 'all' };
 
 export function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
