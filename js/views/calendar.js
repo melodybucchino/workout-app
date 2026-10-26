@@ -1,7 +1,9 @@
 import * as db from '../db.js';
+import { loadLogs } from '../names.js';
+import { needsLinkMigration, runLinkMigration } from '../migrate.js';
 import {
   TYPES, TYPE_ORDER, ui, esc, toKey, fromKey, todayKey, addDays, mondayIndex, mondayOf, fmt,
-  formatKm1, fmtCount, logSubtitle, byOrder, badgeHtml, weekRange, priorLogs, previousExercise, topKg, icon,
+  formatKm1, fmtCount, logSubtitle, byOrder, badgeHtml, weekRange, saveFile, toast, priorLogs, previousExercise, topKg, icon,
 } from '../util.js';
 
 export function dotsHtml(logs) {
@@ -141,7 +143,7 @@ function setWeek(monday) {
 }
 
 export default async function calendar(ctx) {
-  const [logs, steps] = await Promise.all([db.getAll('logs'), db.getAll('steps')]);
+  const [logs, steps, needsUpdate] = await Promise.all([loadLogs(), db.getAll('steps'), needsLinkMigration()]);
   if (!ctx.alive()) return;
 
   const today = new Date();
@@ -169,7 +171,14 @@ export default async function calendar(ctx) {
 
   const todays = byDate.get(tKey) || [];
 
-  ctx.app.innerHTML = `
+  // One-time: save a backup, then link past logs to their saved workouts.
+  const update = needsUpdate ? `<section class="card update-card">
+      <h3>One-time update</h3>
+      <p>Past logs will now follow your saved workouts, so renaming a workout or exercise updates them too. Save a backup of your data first.</p>
+      <button class="btn btn-accent" id="run-update">Back up and update</button>
+    </section>` : '';
+
+  ctx.app.innerHTML = `${update}
     <header class="cal-head">
       <div>
         <div class="cal-year">${month.getFullYear()}</div>
@@ -205,6 +214,21 @@ export default async function calendar(ctx) {
         </a>`).join('') : `<div class="empty">Nothing logged yet today.</div>`}
     </div>
   `;
+
+  ctx.app.querySelector('#run-update')?.addEventListener('click', async e => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      await saveFile(JSON.stringify(await db.exportAll(), null, 2), `workouts-backup-${todayKey()}-before-update.json`);
+    } catch (err) {
+      btn.disabled = false;
+      toast(err.name === 'AbortError' ? 'Backup not saved, so nothing was changed' : `Backup failed: ${err.message}`);
+      return;
+    }
+    await runLinkMigration();
+    await ctx.rerender();
+    toast('Updated. See Settings → Merge exercises');
+  });
 
   ctx.app.querySelectorAll('[data-nav]').forEach(btn => btn.addEventListener('click', () => {
     const step = Number(btn.dataset.nav);

@@ -1,4 +1,5 @@
 import * as db from '../db.js';
+import { loadLogs } from '../names.js';
 import {
   typeLabelHtml, isExerciseType, ui, esc, fromKey, toKey, todayKey, addDays, mondayOf, fmt, isCardio,
   formatDuration, fmtW, getUnit, topKg, countedSets, priorLogs,
@@ -101,7 +102,7 @@ function wireSteps(root, key, initial) {
 
 export default async function day(ctx) {
   const [key] = ctx.params;
-  const [logs, stepsRow] = await Promise.all([db.getAll('logs'), db.get('steps', key)]);
+  const [logs, stepsRow] = await Promise.all([loadLogs(), db.get('steps', key)]);
   if (!ctx.alive()) return;
 
   const date = fromKey(key);

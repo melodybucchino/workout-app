@@ -1,4 +1,5 @@
 import * as db from '../db.js';
+import { loadLogs } from '../names.js';
 import {
   TYPES, TYPE_ORDER, ui, esc, toKey, fromKey, todayKey, addDays, mondayOf, fmt, weekRange,
   fmtW, getUnit, kgToDisplay, fmtCount, formatKm, formatKm1, formatDuration, countedSets, byOrder, isTimed,
@@ -295,7 +296,7 @@ function runningSection(groups) {
 /* ---------- Screen ---------- */
 
 export default async function progress(ctx) {
-  const [logs, steps] = await Promise.all([db.getAll('logs'), db.getAll('steps')]);
+  const [logs, steps] = await Promise.all([loadLogs(), db.getAll('steps')]);
   if (!ctx.alive()) return;
 
   const histories = exerciseHistories(logs);

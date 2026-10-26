@@ -1,4 +1,5 @@
 import * as db from '../db.js';
+import { loadLogs } from '../names.js';
 import {
   TYPES, TYPE_ORDER, isExerciseType, isCardio, ui, uid, esc, fromKey, fmt, byOrder, priorLogs, previousExercise, isTimed,
   templateShortDesc, icon,
@@ -9,7 +10,7 @@ const FILTERS = [['all', 'All'], ...TYPE_ORDER.map(t => [t, TYPES[t].short])];
 
 // A log is a full copy of the template, so later template edits never touch it.
 export async function createLog(template, date) {
-  const logs = await db.getAll('logs');
+  const logs = await loadLogs();
   const log = {
     id: uid(),
     date,
@@ -52,7 +53,7 @@ export async function createLog(template, date) {
 
 export default async function add(ctx) {
   const [key] = ctx.params;
-  const [templates, logs] = await Promise.all([db.getAll('templates'), db.getAll('logs')]);
+  const [templates, logs] = await Promise.all([db.getAll('templates'), loadLogs()]);
   if (!ctx.alive()) return;
 
   const lastDone = new Map();

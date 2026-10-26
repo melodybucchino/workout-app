@@ -56,6 +56,28 @@ export function toast(msg, action, cls = '') {
   toastTimer = setTimeout(() => el.remove(), action ? 5000 : 2400);
 }
 
+// Saves a file to the device. On iPhone the share sheet ("Save to Files") is the most reliable way.
+export async function saveFile(json, filename) {
+  const blob = new Blob([json], { type: 'application/json' });
+  const file = new File([blob], filename, { type: 'application/json' });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 /* ---------- Dates (local time, stored as YYYY-MM-DD) ---------- */
 
 const pad = n => String(n).padStart(2, '0');
@@ -189,11 +211,11 @@ const hasData = ex => ex && ex.sets.some(setHasData);
 
 // The most recent earlier time this exercise was done in this workout,
 // measured the same way (switching reps <-> time starts a fresh history).
-// Matched by the saved exercise it came from, so renames keep their history,
-// or by name for anything without that link.
+// Matched by the saved exercise's id. Only exercises with no link (from before
+// linking, never merged) fall back to matching each other by name.
 export function previousExercise(prior, ex) {
   const n = normName(ex.name);
-  const same = e => (ex.exId && e.exId === ex.exId) || normName(e.name) === n;
+  const same = e => (ex.exId ? e.exId === ex.exId : !e.exId && normName(e.name) === n);
   for (const l of prior) {
     const found = (l.exercises || []).find(e => same(e) && isTimed(e) === isTimed(ex));
     if (hasData(found)) return { log: l, exercise: found };

@@ -1,28 +1,34 @@
 import * as db from '../db.js';
-import { linkExerciseIds, migrateCardio } from '../migrate.js';
-import { getUnit, setUnitCache, todayKey, toast } from '../util.js';
+import { linkAllLogs, migrateCardio } from '../migrate.js';
+import { getUnit, setUnitCache, todayKey, toast, saveFile, esc, isExerciseType, isTimed } from '../util.js';
+import { unmatchedExercises, mergeExercise } from '../names.js';
 
-async function saveFile(json, filename) {
-  const blob = new Blob([json], { type: 'application/json' });
-  const file = new File([blob], filename, { type: 'application/json' });
-  // On iPhone the share sheet ("Save to Files") is the most reliable way to keep a file.
-  if (navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: filename });
-      return;
-    } catch (err) {
-      if (err.name === 'AbortError') throw err;
-    }
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+// Old exercise names in logs that don't match a saved workout's exercise, each
+// with a picker of saved exercises (measured the same way) to merge it into.
+function mergeCard(logs, templates) {
+  const list = unmatchedExercises(logs, templates);
+  const withEx = templates.filter(t => isExerciseType(t.type) && (t.exercises || []).length)
+    .sort((a, b) => a.title.localeCompare(b.title));
+  const options = timed => withEx.map(t => {
+    const exs = t.exercises.filter(e => isTimed(e) === timed);
+    return exs.length ? `<optgroup label="${esc(t.title)}">${exs.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  const rows = list.map(u => `<div class="merge-row" data-key="${esc(u.key)}">
+      <div class="merge-name"><strong>${esc(u.name)}</strong><span>in ${u.logs} log${u.logs === 1 ? '' : 's'}${u.timed ? ' · timed' : ''}</span></div>
+      <div class="merge-pick">
+        <select class="field prog-select" aria-label="Merge ${esc(u.name)} into"><option value="">Merge into…</option>${options(u.timed)}</select>
+        <button class="btn btn-dark" data-merge disabled>Merge</button>
+      </div>
+    </div>`).join('');
+  return `<section class="card settings-card">
+      <h3 class="card-h">Merge exercises</h3>
+      ${list.length
+        ? `<p>These names in your past logs don't match an exercise in any saved workout, for example an old spelling or an exercise you've since removed. Merge one into a saved exercise to give it that name and join its history.</p>
+           <div class="merge-list">${rows}</div>`
+        : '<p>Every exercise in your past logs matches a saved workout. Nothing to merge.</p>'}
+    </section>`;
 }
+
 
 export default async function settings(ctx) {
   const [templates, logs, steps] = await Promise.all([db.getAll('templates'), db.getAll('logs'), db.getAll('steps')]);
@@ -40,6 +46,8 @@ export default async function settings(ctx) {
         <button data-unit="lbs" class="${unit === 'lbs' ? 'on' : ''}">lbs</button>
       </div>
     </section>
+
+    ${mergeCard(logs, templates)}
 
     <section class="card settings-card">
       <h3 class="card-h">Backup</h3>
@@ -78,6 +86,22 @@ export default async function settings(ctx) {
     }
   });
 
+  ctx.app.querySelectorAll('.merge-row').forEach(row => {
+    const select = row.querySelector('select');
+    const btn = row.querySelector('[data-merge]');
+    select.addEventListener('change', () => { btn.disabled = !select.value; });
+    btn.addEventListener('click', async () => {
+      const from = row.querySelector('strong').textContent;
+      const to = select.selectedOptions[0].textContent;
+      const workout = select.selectedOptions[0].parentElement.label;
+      if (!confirm(`Merge "${from}" into "${to}" (${workout})? Past logs will show "${to}" and count towards its history. Sets and weights aren't changed.`)) return;
+      btn.disabled = true;
+      await mergeExercise(row.dataset.key, select.value);
+      await ctx.rerender();
+      toast(`Merged ${from} into ${to}`);
+    });
+  });
+
   const fileIn = ctx.app.querySelector('#file');
   ctx.app.querySelector('#import').addEventListener('click', () => fileIn.click());
   fileIn.addEventListener('change', async () => {
@@ -91,7 +115,7 @@ export default async function settings(ctx) {
       if (!ok) return;
       await db.importAll(data);
       await migrateCardio();
-      await linkExerciseIds();
+      await linkAllLogs();
       setUnitCache(await db.getSetting('unit', 'kg'));
       await ctx.rerender();
       toast('Backup imported.');

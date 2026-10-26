@@ -1,4 +1,5 @@
 import * as db from '../db.js';
+import { stampNames } from '../names.js';
 import { TYPES, isExerciseType, isCardio, uid, esc, normName, parseNumber, backLink, icon } from '../util.js';
 import { ACTIVITIES, ACTIVITY_ORDER, DEFAULT_ACTIVITY, recordsList } from '../cardio.js';
 
@@ -279,11 +280,14 @@ export default async function edit(ctx) {
       }
       if (!isCardio(draft.type)) delete draft.activity;
       await db.put('templates', draft);
+      // Past logs show the new names; also store them as the logs' last known names.
+      await stampNames();
       location.replace(backHref);
     });
 
     $('#delete')?.addEventListener('click', async () => {
-      if (!confirm(`Delete "${existing.title}"? Your past logs of it will be kept.`)) return;
+      if (!confirm(`Delete "${existing.title}"? Your past logs of it will be kept on the calendar under this name.`)) return;
+      await stampNames();
       await db.del('templates', existing.id);
       location.replace('#/workouts');
     });

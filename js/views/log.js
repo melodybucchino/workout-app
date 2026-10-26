@@ -1,4 +1,5 @@
 import * as db from '../db.js';
+import { loadLogs } from '../names.js';
 import {
   typeLabelHtml, isExerciseType, toast, dismissToast, esc, fromKey, fmt, isCardio, debounce, priorLogs, previousExercise,
   progressBadge, isTimed, isPerSide, holdDigits, parseHold, formatHold, badgeHtml, volumeKg, fmtVolume, fmtW, getUnit, displayToKg, parseNumber,
@@ -315,7 +316,9 @@ function renderDuration(root, log, prior, save) {
 
 export default async function logView(ctx) {
   const [id] = ctx.params;
-  const [log, logs] = await Promise.all([db.get('logs', id), db.getAll('logs')]);
+  // Names come from the saved workout; saving the log stores them as its last known names.
+  const logs = await loadLogs();
+  const log = logs.find(l => l.id === id);
   if (!ctx.alive()) return;
   if (!log) {
     ctx.app.innerHTML = `<div class="topbar">${backLink('#/', 'Calendar')}</div><div class="empty">This workout log no longer exists.</div>`;

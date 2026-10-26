@@ -1,6 +1,6 @@
 import * as db from './db.js';
 import { seedIfNeeded } from './seed.js';
-import { linkExerciseIds, migrateCardio } from './migrate.js';
+import { migrateCardio } from './migrate.js';
 import { setUnitCache } from './util.js';
 import calendar from './views/calendar.js';
 import day from './views/day.js';
@@ -67,7 +67,6 @@ async function start() {
   await seedIfNeeded();
   // Housekeeping only; never block the app from opening.
   try { await migrateCardio(); } catch (err) { console.warn('Cardio migration failed', err); }
-  try { await linkExerciseIds(); } catch (err) { console.warn('Linking exercises failed', err); }
   setUnitCache(await db.getSetting('unit', 'kg'));
   window.addEventListener('hashchange', router);
   router();

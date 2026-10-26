@@ -1,5 +1,6 @@
 import * as db from './db.js';
 import { normName } from './util.js';
+import { stampNames } from './names.js';
 
 // Logs made before exercises were linked by id only carry the exercise name.
 // Link them to their saved workout's exercises (by name, while names still
@@ -39,4 +40,43 @@ export async function migrateCardio() {
   const l = logs.filter(toCardio);
   if (t.length) await db.putMany('templates', t);
   if (l.length) await db.putMany('logs', l);
+}
+
+// Logs whose saved workout was deleted and re-created point at an id that no
+// longer exists. Re-link them when exactly one saved workout of the same kind
+// has exactly the same name; otherwise leave them under their last known name.
+export async function linkLogsToTemplates() {
+  const [templates, logs] = await Promise.all([db.getAll('templates'), db.getAll('logs')]);
+  const ids = new Set(templates.map(t => t.id));
+  const changed = [];
+  for (const log of logs) {
+    if (ids.has(log.templateId)) continue;
+    const matches = templates.filter(t => normName(t.title) === normName(log.title)
+      && t.type === log.type && (t.activity ?? null) === (log.activity ?? null));
+    if (matches.length === 1) {
+      log.templateId = matches[0].id;
+      changed.push(log);
+    }
+  }
+  if (changed.length) await db.putMany('logs', changed);
+}
+
+// One-time update that links past logs to their saved workouts so names follow
+// the saved workout. Run after a backup has been saved (see the calendar).
+// Exercises that don't match by exact name are left for Settings → Merge exercises.
+export const LINKED_FLAG = 'linkedLogs';
+export async function needsLinkMigration() {
+  if (await db.getSetting(LINKED_FLAG, false)) return false;
+  if ((await db.getAll('logs')).length) return true;
+  await db.setSetting(LINKED_FLAG, true);
+  return false;
+}
+export async function linkAllLogs() {
+  await linkLogsToTemplates();
+  await linkExerciseIds();
+  await stampNames();
+}
+export async function runLinkMigration() {
+  await linkAllLogs();
+  await db.setSetting(LINKED_FLAG, true);
 }

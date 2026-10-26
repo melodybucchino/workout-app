@@ -708,6 +708,19 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
 .settings-card p { color: var(--text-2); margin: 6px 0 14px; font-size: 15px; line-height: 1.45; }
 .settings-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .settings-actions .btn { border-radius: 14px; min-height: 50px; }
+.merge-list > * + * { border-top: 1px solid var(--border); }
+.merge-row { padding: 12px 0; }
+.merge-row:first-child { padding-top: 0; }
+.merge-name { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.merge-name span { color: var(--text-2); font-size: 14px; white-space: nowrap; }
+.merge-pick { display: flex; gap: 8px; }
+.merge-pick select { flex: 1; min-width: 0; font-weight: 600; }
+.merge-pick .btn { flex: none; min-height: 52px; border-radius: 14px; padding: 0 16px; }
+.merge-pick .btn:disabled { opacity: 0.35; }
+.update-card { padding: 16px; margin: 16px 0 22px; background: var(--dark); color: #fff; border-color: var(--dark); }
+.update-card h3 { margin: 0 0 6px; font-size: 17px; }
+.update-card p { margin: 0 0 14px; color: #CFCBC2; font-size: 15px; line-height: 1.45; }
+.update-card .btn { width: 100%; }
 .status { font-size: 14px; margin-top: 12px; color: var(--up-text); }
 .status.err { color: var(--danger); }
 .coming {
