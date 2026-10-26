@@ -15,7 +15,7 @@ export const isExerciseType = t => t === 'strength' || t === 'core';
 export const isCardio = t => t === 'cardio';
 
 // UI state that should survive moving between screens.
-export const ui = { calMonth: null, calWeek: null, addFilter: 'all', libFilter: 'all' };
+export const ui = { calMonth: null, calWeek: null, progRange: '12', progEx: null, progRun: null, addFilter: 'all', libFilter: 'all' };
 
 export function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -37,11 +37,11 @@ export function dismissToast() {
   clearTimeout(toastTimer);
   document.querySelector('.toast')?.remove();
 }
-// Optional action adds a button, e.g. { label: 'Undo', onClick }.
-export function toast(msg, action) {
+// Optional action adds a button, e.g. { label: 'Undo', onClick }. `cls` styles it, e.g. 'pr'.
+export function toast(msg, action, cls = '') {
   dismissToast();
   const el = document.createElement('div');
-  el.className = 'toast';
+  el.className = `toast ${cls}`.trim();
   el.setAttribute('role', 'status');
   const text = document.createElement('span');
   text.textContent = msg;
@@ -84,6 +84,14 @@ export const fmt = {
   weekday: d => DAYS[d.getDay()],
   month: d => MONTHS[d.getMonth()],
 };
+
+// Mon–Sun week from its Monday: "12 – 18 Oct", or "28 Sep – 4 Oct" across months.
+export function weekRange(start) {
+  const end = addDays(start, 6);
+  return start.getMonth() === end.getMonth()
+    ? `${start.getDate()} – ${fmt.dayMonth(end)}`
+    : `${fmt.dayMonth(start)} – ${fmt.dayMonth(end)}`;
+}
 
 /* ---------- Durations & pace ---------- */
 

@@ -1,7 +1,7 @@
 import * as db from '../db.js';
 import {
   TYPES, TYPE_ORDER, ui, esc, toKey, fromKey, todayKey, addDays, mondayIndex, mondayOf, fmt,
-  formatKm1, fmtCount, logSubtitle, byOrder, badgeHtml, icon,
+  formatKm1, fmtCount, logSubtitle, byOrder, badgeHtml, weekRange, icon,
 } from '../util.js';
 
 export function dotsHtml(logs) {
@@ -18,7 +18,7 @@ export function groupByDate(logs) {
 }
 
 // Average daily steps over a date range, counting only days with steps logged.
-function stepsAverage(steps, from, to) {
+export function stepsAverage(steps, from, to) {
   const days = steps.filter(s => s.date >= from && s.date <= to);
   const total = days.reduce((sum, s) => sum + s.steps, 0);
   return { days: days.length, avg: days.length ? Math.round(total / days.length) : null };
@@ -33,13 +33,6 @@ function stepsVsPrevWeek(week, prevWeek, current) {
   return badgeHtml({ cls: diff > 0 ? 'up' : 'down', text: `${fmtCount(Math.abs(diff))} vs ${prev}`, dir: Math.sign(diff) });
 }
 
-// "12 – 18 Oct", or "28 Sep – 4 Oct" across a month boundary.
-function weekRange(start, end) {
-  return start.getMonth() === end.getMonth()
-    ? `${start.getDate()} – ${fmt.dayMonth(end)}`
-    : `${fmt.dayMonth(start)} – ${fmt.dayMonth(end)}`;
-}
-
 // Summary for the Mon–Sun week starting `wkStart`, which is never after the current week.
 function weekCard(wkStart, logs, steps) {
   const thisMonday = mondayOf(new Date());
@@ -52,7 +45,7 @@ function weekCard(wkStart, logs, steps) {
   const stepsWeek = stepsAverage(steps, ws, we);
   const stepsPrev = stepsAverage(steps, toKey(addDays(wkStart, -7)), toKey(addDays(wkStart, -1)));
 
-  const range = weekRange(wkStart, wkEnd);
+  const range = weekRange(wkStart);
   const title = weeksAgo === 0 ? 'This week' : weeksAgo === 1 ? 'Last week' : range;
   const year = wkEnd.getFullYear() !== thisMonday.getFullYear() ? ` · ${wkEnd.getFullYear()}` : '';
   const sub = weeksAgo <= 1 ? range : `${weeksAgo} weeks ago${year}`;

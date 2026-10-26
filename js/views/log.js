@@ -5,6 +5,7 @@ import {
   parseDuration, formatDuration, digitsToTime, formatKm, backLink, icon,
 } from '../util.js';
 import { FIELDS, activityOf, derivedOf, fieldLabel, cardioSummary } from '../cardio.js';
+import { bestSet, better, priorBests } from '../stats.js';
 
 const FEELS = ['Easy', 'Moderate', 'Hard'];
 
@@ -26,7 +27,12 @@ function amountCell(s, j, timed) {
     : `<input class="num-input" data-set="${j}" data-field="reps" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" value="${s.reps ?? ''}" aria-label="Set ${j + 1} reps">`;
 }
 
-function exerciseCard(ex, i, prior) {
+// Lime "New PR!" when an exercise beats its best from earlier logs.
+const isPr = (ex, before) => !isTimed(ex) && !!before && better(bestSet(ex), before);
+const exBadges = (ex, prev, before) =>
+  `${isPr(ex, before) ? '<span class="new-tag">New PR!</span>' : ''}${badgeHtml(progressBadge(ex, prev, true))}`;
+
+function exerciseCard(ex, i, prior, before) {
   const timed = isTimed(ex);
   const prev = previousExercise(prior, ex)?.exercise;
   const rows = ex.sets.map((s, j) => `
@@ -38,7 +44,7 @@ function exerciseCard(ex, i, prior) {
       <td class="col-rm"><button class="rm-set" data-remove-set="${j}" aria-label="Remove set ${j + 1}">${icon.x}</button></td>
     </tr>`).join('');
   return `<section class="card ex-card" data-ex="${i}">
-    <div class="ex-card-head"><h3>${esc(ex.name)}${isPerSide(ex) ? '<span class="side-tag">per side</span>' : ''}</h3><span class="ex-badge">${badgeHtml(progressBadge(ex, prev, true))}</span></div>
+    <div class="ex-card-head"><h3>${esc(ex.name)}${isPerSide(ex) ? '<span class="side-tag">per side</span>' : ''}</h3><span class="ex-badge">${exBadges(ex, prev, before)}</span></div>
     <table class="set-table">
       <thead><tr><th class="col-set">Set</th><th>Last time</th><th class="col-kg c">${getUnit()}</th><th class="col-reps c">${timed ? 'Time' : 'Reps'}${isPerSide(ex) ? ' / side' : ''}</th><th class="col-rm"></th></tr></thead>
       <tbody>${rows}</tbody>
@@ -47,7 +53,7 @@ function exerciseCard(ex, i, prior) {
   </section>`;
 }
 
-function renderStrength(root, log, prior, save) {
+function renderStrength(root, log, prior, save, bests) {
   const prevLog = prior.find(l => (l.exercises || []).length);
   const prevVol = prevLog ? volumeKg(prevLog.exercises) : 0;
 
@@ -64,7 +70,7 @@ function renderStrength(root, log, prior, save) {
         <span id="vol-pill"></span>
       </div>
     </section>
-    <div id="exercises">${log.exercises.map((ex, i) => exerciseCard(ex, i, prior)).join('')}</div>
+    <div id="exercises">${log.exercises.map((ex, i) => exerciseCard(ex, i, prior, bests[i])).join('')}</div>
   `;
 
   const updateSummary = () => {
@@ -82,7 +88,7 @@ function renderStrength(root, log, prior, save) {
 
   const list = root.querySelector('#exercises');
   const rerenderCard = i => {
-    list.querySelector(`[data-ex="${i}"]`).outerHTML = exerciseCard(log.exercises[i], i, prior);
+    list.querySelector(`[data-ex="${i}"]`).outerHTML = exerciseCard(log.exercises[i], i, prior, bests[i]);
   };
 
   list.addEventListener('input', e => {
@@ -102,8 +108,7 @@ function renderStrength(root, log, prior, save) {
       set.reps = v == null ? null : Math.round(v);
     }
     const prev = previousExercise(prior, log.exercises[i])?.exercise;
-    input.closest('[data-ex]').querySelector('.ex-badge').innerHTML =
-      badgeHtml(progressBadge(log.exercises[i], prev, true));
+    input.closest('[data-ex]').querySelector('.ex-badge').innerHTML = exBadges(log.exercises[i], prev, bests[i]);
     updateSummary();
     save();
   });
@@ -320,8 +325,9 @@ export default async function logView(ctx) {
   const prior = priorLogs(logs, log);
   const dayHref = `#/day/${log.date}`;
   let removed = false;
+  let keepToast = false;
   const save = debounce(() => (removed ? null : db.put('logs', log)), 300);
-  ctx.onLeave(() => { dismissToast(); return save.flush(); });
+  ctx.onLeave(() => { if (!keepToast) dismissToast(); return save.flush(); });
 
   const hasFeel = !isExerciseType(log.type);
   ctx.app.innerHTML = `
@@ -343,7 +349,8 @@ export default async function logView(ctx) {
 
   const body = ctx.app.querySelector('#body');
   let missingFields = () => [];
-  if (isExerciseType(log.type)) renderStrength(body, log, prior, save);
+  const bests = isExerciseType(log.type) ? priorBests(logs, log) : [];
+  if (isExerciseType(log.type)) renderStrength(body, log, prior, save, bests);
   else if (isCardio(log.type)) missingFields = renderCardio(body, log, prior, save);
   else renderDuration(body, log, prior, save);
 
@@ -365,6 +372,14 @@ export default async function logView(ctx) {
       return;
     }
     await save.flush();
+    // Carry a "New PR!" message over to the day screen.
+    const prs = (log.exercises || []).filter((ex, i) => isPr(ex, bests[i]));
+    if (prs.length) {
+      keepToast = true;
+      toast(prs.length === 1
+        ? `New PR! ${prs[0].name} ${fmtW(bestSet(prs[0]).kg)} ${getUnit()}${bestSet(prs[0]).reps ? ` × ${bestSet(prs[0]).reps}` : ''}`
+        : `New PRs! ${prs.map(e => e.name).join(', ')}`, null, 'pr');
+    }
     location.replace(dayHref);
   });
   ctx.app.querySelector('#remove').addEventListener('click', async () => {
