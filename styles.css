@@ -391,6 +391,11 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
   border-top: 1px solid var(--border);
 }
 .week-steps .stat-label { grid-column: 1 / -1; margin-top: 2px; }
+.week-lifted { margin-top: 12px; padding-top: 12px; }
+.avg-arrow { display: inline-flex; vertical-align: -2px; margin-left: 4px; }
+.avg-arrow svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.avg-arrow.up { color: var(--up-text); }
+.avg-arrow.down { color: var(--down-text); }
 
 /* Steps card (day view) */
 .steps-card { display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 16px; margin-top: 16px; }
