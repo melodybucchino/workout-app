@@ -775,6 +775,26 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
   white-space: nowrap;
 }
 .prog-empty { margin-top: 0; }
+.wo-card { overflow: hidden; }
+.wo-card + .wo-card { margin-top: 10px; }
+.wo-head { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 72px; padding: 14px 12px 14px 16px; text-align: left; background: none; border: 0; }
+.wo-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.wo-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; }
+.wo-title .dot { flex: none; }
+.wo-change { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.wo-n { color: var(--text-2); font-size: 13px; }
+.spark { flex: none; }
+.spark polyline { fill: none; stroke: var(--dark); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.spark circle { fill: var(--accent); stroke: var(--dark); stroke-width: 1.5; }
+.spark .zero { stroke: var(--border); stroke-dasharray: 3 3; }
+.wo-chev { display: inline-flex; color: var(--text-2); transition: transform .15s; }
+.wo-chev svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transform: rotate(90deg); }
+.wo-card.open .wo-chev { transform: rotate(180deg); }
+.wo-exs { border-top: 1px solid var(--border); padding: 0 12px 4px 16px; }
+.wo-ex { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; text-align: left; background: none; border: 0; padding: 0; }
+.wo-ex + .wo-ex { border-top: 1px solid var(--border); }
+.wo-ex-name { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; }
+.wo-ex .chev { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--text-2); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .toast.pr { background: var(--accent); color: var(--text); }
 
 .toast {

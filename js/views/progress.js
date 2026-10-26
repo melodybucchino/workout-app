@@ -1,9 +1,10 @@
 import * as db from '../db.js';
 import {
   TYPES, TYPE_ORDER, ui, esc, toKey, fromKey, todayKey, addDays, mondayOf, fmt, weekRange,
-  fmtW, getUnit, kgToDisplay, fmtCount, formatKm, formatKm1, formatDuration, countedSets, byOrder,
+  fmtW, getUnit, kgToDisplay, fmtCount, formatKm, formatKm1, formatDuration, countedSets, byOrder, isTimed,
+  badgeHtml, icon,
 } from '../util.js';
-import { exerciseHistories } from '../stats.js';
+import { exerciseHistories, historyFor, bestSet } from '../stats.js';
 import { stepsAverage } from './calendar.js';
 import { DERIVED } from '../cardio.js';
 
@@ -122,10 +123,101 @@ function wireChart(box, xs, onPick) {
 const readout = (main, sub) => `<div class="chart-read"><strong>${main}</strong><span>${sub}</span></div>`;
 const empty = text => `<div class="empty prog-empty">${text}</div>`;
 
+/* ---------- Workout overview ---------- */
+
+const mean = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
+const RANGE_SUFFIX = { 4: ' over 4 weeks', 12: ' over 12 weeks', all: ' overall' };
+
+// Green/orange/grey % badge; under 1% counts as the same.
+function pctBadge(pct, suffix = '') {
+  if (Math.abs(pct) < 1) return badgeHtml({ cls: '', text: `Same${suffix}`, dir: 0 });
+  return badgeHtml({ cls: pct > 0 ? 'up' : 'down', text: `${Math.abs(Math.round(pct))}%${suffix}`, dir: Math.sign(pct) });
+}
+
+// Each strength workout's sessions in the range. Per exercise (matched by name or
+// link, as in the exercise histories), the change in top-set weight from its first
+// to its latest session of this workout in the range; the workout's figure is the
+// average of those. `spark` is the same average at each session, from 0 at the start.
+function workoutGroups(logs, histories, from) {
+  const groups = new Map();
+  for (const l of [...logs].sort(byOrder)) {
+    if (l.type !== 'strength') continue;
+    const key = l.templateId || `title:${l.title}`;
+    if (!groups.has(key)) groups.set(key, { key, all: [] });
+    groups.get(key).all.push(l);
+  }
+  return [...groups.values()].map(g => {
+    const sessions = g.all.filter(l => l.date >= from);
+    const exs = new Map();
+    const spark = [];
+    for (const l of sessions) {
+      const pcts = [];
+      for (const ex of l.exercises || []) {
+        const kg = bestSet(ex)?.kg;
+        const h = kg != null && !isTimed(ex) ? historyFor(histories, ex) : null;
+        if (!h) continue;
+        if (!exs.has(h.id)) exs.set(h.id, { h, first: kg, last: kg, n: 0 });
+        const e = exs.get(h.id);
+        e.last = kg;
+        e.n++;
+        pcts.push(((kg - e.first) / e.first) * 100);
+      }
+      if (pcts.length) spark.push(mean(pcts));
+    }
+    const rows = [...exs.values()].map(e => ({ ...e, pct: e.n > 1 ? ((e.last - e.first) / e.first) * 100 : null }));
+    const pcts = rows.filter(r => r.pct != null).map(r => r.pct);
+    return { key: g.key, title: g.all.at(-1).title, last: g.all.at(-1), sessions, spark, rows, avg: pcts.length ? mean(pcts) : null };
+  }).filter(g => g.sessions.length).sort((a, b) => byOrder(b.last, a.last));
+}
+
+function sparkline(vals) {
+  if (vals.length < 2) return '';
+  const [W, H, p] = [76, 30, 4];
+  const lo = Math.min(0, ...vals);
+  const hi = Math.max(0, ...vals);
+  const span = hi - lo || 1;
+  const x = i => p + (i / (vals.length - 1)) * (W - 2 * p);
+  const y = v => p + (1 - (v - lo) / span) * (H - 2 * p);
+  const pts = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+    <line x1="${p}" x2="${W - p}" y1="${y(0)}" y2="${y(0)}" class="zero"/>
+    <polyline points="${pts}"/><circle cx="${x(vals.length - 1)}" cy="${y(vals.at(-1))}" r="3"/></svg>`;
+}
+
+function overviewSection(groups, anyStrength, rangeName) {
+  const head = '<h2 class="prog-h">Workouts</h2>';
+  if (!anyStrength) return head + empty(EMPTY);
+  if (!groups.length) return head + empty(`No strength workouts ${rangeName}.`);
+  const suffix = RANGE_SUFFIX[ui.progRange];
+  return head + groups.map(g => {
+    const open = ui.progOpen === g.key;
+    const n = g.sessions.length;
+    const change = g.avg != null ? pctBadge(g.avg, suffix)
+      : `<span class="sp-first">${n === 1 ? 'Log it again to compare' : 'No weights to compare'}</span>`;
+    const rows = !open ? '' : `<div class="wo-exs">${g.rows.map(r => `
+      <button class="wo-ex" data-ex="${esc(r.h.id)}">
+        <span class="wo-ex-name">${esc(r.h.name)}${r.h.perSide ? sideTag : ''}</span>
+        ${r.pct != null ? pctBadge(r.pct) : '<span class="sp-first">1 session</span>'}
+        ${icon.chevR}
+      </button>`).join('') || '<p class="chart-none">No weighted exercises.</p>'}</div>`;
+    return `<section class="card wo-card${open ? ' open' : ''}">
+      <button class="wo-head" data-wo="${esc(g.key)}" aria-expanded="${open}">
+        <span class="wo-main">
+          <span class="wo-title"><span class="dot t-strength"></span>${esc(g.title)}</span>
+          <span class="wo-change">${change}<span class="wo-n">${n} session${n === 1 ? '' : 's'}</span></span>
+        </span>
+        ${sparkline(g.spark)}
+        <span class="wo-chev">${icon.chevR}</span>
+      </button>
+      ${rows}
+    </section>`;
+  }).join('');
+}
+
 /* ---------- Sections ---------- */
 
 function strengthSection(histories) {
-  if (!histories.length) return `<h2 class="prog-h">Strength</h2>${empty(EMPTY)}`;
+  if (!histories.length) return `<h2 class="prog-h" id="ex-detail">Exercise detail</h2>${empty(EMPTY)}`;
   const h = histories.find(x => x.keys.has(ui.progEx)) || histories[0];
   const options = histories.map(x => `<option value="${esc(x.id)}" ${x === h ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
   const recent = h.sessions.slice(-5).reverse();
@@ -133,7 +225,7 @@ function strengthSection(histories) {
     const reps = countedSets(s.ex).map(x => x.reps ?? '–').join(', ');
     return `<tr><td>${dateText(s.date)}</td><td>${esc(reps || '–')}</td><td class="r">${fmtW(s.best.kg)} ${getUnit()}</td></tr>`;
   }).join('');
-  return `<h2 class="prog-h">Strength</h2>
+  return `<h2 class="prog-h" id="ex-detail">Exercise detail</h2>
     <section class="card prog-card">
       <label class="sr-only" for="ex-pick">Exercise</label>
       <select class="field prog-select" id="ex-pick">${options}</select>
@@ -232,7 +324,9 @@ export default async function progress(ctx) {
     const weeks = Array.from({ length: shown }, (_, i) => addDays(thisMonday, -7 * (shown - 1 - i)));
     const rangeName = ui.progRange === 'all' ? 'yet' : `in the last ${ui.progRange} weeks`;
 
+    const workouts = workoutGroups(logs, histories, fromKeyStr);
     prog.innerHTML = `
+      ${overviewSection(workouts, logs.some(l => l.type === 'strength'), rangeName)}
       ${strengthSection(histories)}
       ${recordsSection(histories)}
       <h2 class="prog-h">Weekly trends</h2>
@@ -242,6 +336,17 @@ export default async function progress(ctx) {
       ${runningSection(runs)}
     `;
     const W = prog.querySelector('.prog-card, .empty').clientWidth - 34;
+
+    // Workout cards open to their exercises; an exercise opens its chart below.
+    prog.querySelectorAll('[data-wo]').forEach(b => b.addEventListener('click', () => {
+      ui.progOpen = ui.progOpen === b.dataset.wo ? null : b.dataset.wo;
+      render();
+    }));
+    prog.querySelectorAll('[data-ex]').forEach(b => b.addEventListener('click', () => {
+      ui.progEx = b.dataset.ex;
+      render();
+      prog.querySelector('#ex-detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
 
     // Strength line chart
     const sBox = prog.querySelector('#strength-chart');
