@@ -1,7 +1,7 @@
 import * as db from '../db.js';
 import {
   TYPES, TYPE_ORDER, ui, esc, toKey, fromKey, todayKey, addDays, mondayIndex, mondayOf, fmt,
-  formatKm1, fmtCount, logSubtitle, byOrder, badgeHtml, weekRange, volumeKg, fmtVolume, getUnit, icon,
+  formatKm1, fmtCount, logSubtitle, byOrder, badgeHtml, weekRange, priorLogs, previousExercise, topKg, icon,
 } from '../util.js';
 
 export function dotsHtml(logs) {
@@ -33,30 +33,55 @@ function stepsVsPrevWeek(week, prevWeek, current) {
   return badgeHtml({ cls: diff > 0 ? 'up' : 'down', text: `${fmtCount(Math.abs(diff))} vs ${prev}`, dir: Math.sign(diff) });
 }
 
-// Strength volume for a week: weight × reps of every set (per-side sets count twice).
-function liftedWeek(logs, from, to) {
-  const sessions = logs.filter(l => l.type === 'strength' && l.date >= from && l.date <= to);
-  const total = sessions.reduce((sum, l) => sum + volumeKg(l.exercises), 0);
-  return { sessions: sessions.length, total, avg: sessions.length ? total / sessions.length : null };
+// Percentage change in top-set weight per exercise against the previous session
+// of the same workout. Exercises without a weight in both sessions are skipped;
+// per-side weights compare as logged (one side).
+function strengthChange(log, prev) {
+  const pcts = [];
+  for (const ex of log.exercises || []) {
+    const now = topKg(ex);
+    const before = topKg(previousExercise([prev], ex)?.exercise);
+    if (now != null && before != null) pcts.push(((now - before) / before) * 100);
+  }
+  const dir = p => (Math.abs(p) < 1 ? 0 : Math.sign(p));
+  return {
+    avg: pcts.length ? pcts.reduce((x, y) => x + y, 0) / pcts.length : null,
+    up: pcts.filter(p => dir(p) > 0).length,
+    same: pcts.filter(p => dir(p) === 0).length,
+    down: pcts.filter(p => dir(p) < 0).length,
+  };
 }
 
-// +1 / -1 / 0 when within 1% of the earlier value.
-const change = (now, before) => (Math.abs(now - before) <= Math.abs(before) * 0.01 ? 0 : Math.sign(now - before));
-
-function liftedVsPrevWeek(week, prevWeek, current) {
-  if (!week.sessions || !prevWeek.sessions) return '';
-  const prev = current ? 'last week' : 'week before';
-  const dir = change(week.total, prevWeek.total);
-  if (!dir) return badgeHtml({ cls: '', text: `Same as ${prev}`, dir: 0 });
-  const amt = `${fmtVolume(Math.abs(week.total - prevWeek.total))} ${getUnit()}`;
-  return badgeHtml({ cls: dir > 0 ? 'up' : 'down', text: `${amt} vs ${prev}`, dir });
-}
-
-function liftedLabel(week, prevWeek) {
-  if (!week.sessions) return `${getUnit()} lifted`;
-  const dir = prevWeek.sessions ? change(week.avg, prevWeek.avg) : 0;
-  const arrow = dir ? `<span class="avg-arrow ${dir > 0 ? 'up' : 'down'}" aria-label="${dir > 0 ? 'up' : 'down'} on the week before">${dir > 0 ? icon.up : icon.down}</span>` : '';
-  return `${getUnit()} lifted · avg ${fmtVolume(week.avg)} ${getUnit()} / session · ${week.sessions} session${week.sessions === 1 ? '' : 's'}${arrow}`;
+// One row per strength workout done this week (its latest session), compared
+// with the most recent earlier session of the same workout, however long ago.
+function strengthRows(logs, from, to) {
+  const latest = new Map();
+  for (const l of logs.filter(x => x.type === 'strength' && x.date >= from && x.date <= to).sort(byOrder)) {
+    latest.set(l.templateId || `title:${l.title}`, l);
+  }
+  return [...latest.values()].sort(byOrder).map(log => {
+    const prev = priorLogs(logs, log)[0];
+    let right;
+    let sub = '';
+    if (!prev) right = '<span class="sp-first">First session</span>';
+    else {
+      const c = strengthChange(log, prev);
+      if (c.avg == null) {
+        right = '<span class="sp-first">No weights to compare</span>';
+      } else {
+        const pct = Math.round(c.avg);
+        right = Math.abs(c.avg) < 1
+          ? badgeHtml({ cls: '', text: 'Same', dir: 0 })
+          : badgeHtml({ cls: pct > 0 ? 'up' : 'down', text: `${Math.abs(pct)}% avg`, dir: Math.sign(pct) });
+        sub = [[c.up, 'up'], [c.same, 'same'], [c.down, 'down']].filter(([n]) => n).map(([n, w]) => `${n} ${w}`).join(' · ');
+      }
+    }
+    return `<a class="sp-row" href="#/log/${log.id}">
+      <span class="dot t-strength"></span>
+      <span class="row-main"><span class="sp-title">${esc(log.title)}</span>${sub ? `<span class="sp-sub">${sub}</span>` : ''}</span>
+      ${right}
+    </a>`;
+  });
 }
 
 // Summary for the Mon–Sun week starting `wkStart`, which is never after the current week.
@@ -70,8 +95,7 @@ function weekCard(wkStart, logs, steps) {
   const runKm = weekLogs.filter(l => l.type === 'cardio' && l.activity === 'run').reduce((s, l) => s + (l.distanceKm || 0), 0);
   const stepsWeek = stepsAverage(steps, ws, we);
   const stepsPrev = stepsAverage(steps, toKey(addDays(wkStart, -7)), toKey(addDays(wkStart, -1)));
-  const lifted = liftedWeek(logs, ws, we);
-  const liftedPrev = liftedWeek(logs, toKey(addDays(wkStart, -7)), toKey(addDays(wkStart, -1)));
+  const progress = strengthRows(logs, ws, we);
 
   const range = weekRange(wkStart);
   const title = weeksAgo === 0 ? 'This week' : weeksAgo === 1 ? 'Last week' : range;
@@ -97,11 +121,10 @@ function weekCard(wkStart, logs, steps) {
         ${stepsVsPrevWeek(stepsWeek, stepsPrev, weeksAgo === 0)}
         <div class="stat-label">avg steps / day · ${stepsWeek.days} of 7 days</div>
       </div>
-      <div class="week-steps week-lifted">
-        <div class="stat-val">${lifted.sessions ? `${fmtVolume(lifted.total)}<small>${getUnit()}</small>` : '–'}</div>
-        ${liftedVsPrevWeek(lifted, liftedPrev, weeksAgo === 0)}
-        <div class="stat-label">${liftedLabel(lifted, liftedPrev)}</div>
-      </div>
+      ${progress.length ? `<div class="week-strength">
+        <div class="stat-label">Strength progress</div>
+        ${progress.join('')}
+      </div>` : ''}
     </section>`;
 }
 

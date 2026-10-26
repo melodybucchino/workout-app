@@ -391,11 +391,15 @@ textarea.field { min-height: 96px; resize: vertical; line-height: 1.4; }
   border-top: 1px solid var(--border);
 }
 .week-steps .stat-label { grid-column: 1 / -1; margin-top: 2px; }
-.week-lifted { margin-top: 12px; padding-top: 12px; }
-.avg-arrow { display: inline-flex; vertical-align: -2px; margin-left: 4px; }
-.avg-arrow svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-.avg-arrow.up { color: var(--up-text); }
-.avg-arrow.down { color: var(--down-text); }
+.week-strength { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.week-strength > .stat-label { margin: 0 0 2px; }
+.sp-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 0; }
+.sp-row + .sp-row { border-top: 1px solid var(--border); }
+.sp-row .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sp-title { font-weight: 700; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-sub { color: var(--text-2); font-size: 13px; margin-top: 1px; }
+.sp-first { color: var(--text-2); font-size: 14px; white-space: nowrap; }
+.sp-row .badge { flex: none; }
 
 /* Steps card (day view) */
 .steps-card { display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 16px; margin-top: 16px; }
